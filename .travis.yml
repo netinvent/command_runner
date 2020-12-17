@@ -1,0 +1,81 @@
+language: python
+
+matrix:
+    include:
+      - os: linux
+        python: 2.7
+        dist: xenial
+        sudo: required
+        env: PYTHON=python2.7
+#      - os: linux
+#        travis does not support python 3.3 anymore
+#        python: 3.3
+#        dist: xenial
+#        sudo: required
+#        env: PYTHON=python3.3
+      - os: linux
+        python: 3.4
+        dist: xenial
+        sudo: required
+        env: PYTHON=python3.4
+      - os: linux
+        python: 3.5
+        dist: xenial
+        sudo: required
+        env: PYTHON=python3.5
+      - os: linux
+        python: 3.6
+        dist: xenial
+        sudo: required
+        env: PYTHON=python3.6
+      - os: linux
+        python: 3.7
+        dist: xenial
+        sudo: required
+        env: PYTHON=python3.7
+      - os: linux
+        python: 3.8
+        dist: xenial
+        sudo: required
+        env: PYTHON=python3.8
+#      Won't support pypy 2.7, too much hassle
+#      - os: linux
+#        python: pypy
+#        dist: xenial
+#        sudo: required
+#        env: PYTHON=pypy
+      - os: linux
+        python: pypy3
+        dist: xenial
+        sudo: required
+        env: PYTHON=pypy
+      - os: linux
+        python: pypy3.5-7.0
+        dist: xenial
+        sudo: required
+        env: PYTHON=pypy
+
+env:
+  global:
+    - CODECOV_TOKEN="f949b774-4f56-4e34-b2a5-7f4a552c5fda"
+
+install:
+  - "pip install pylint pytest coverage flake8"
+
+script:
+# debug
+#  - ls ./
+#  - echo $PYTHON
+#  - "env | sort"
+# flake8 ignore E501=line too long > 79 characters
+  - flake8 --ignore=E501 command_runner
+# Only check for errors with -E
+  - "$PYTHON -m pylint -E command_runner/__init__.py"
+  - "$PYTHON -m pylint -E command_runner/elevate.py"
+# Don't bother to pylint powershell runner since we didn't confiure travis with windows support
+# We need to run pytest with -s since we capture stdout while running pytest
+#  - "$PYTHON -m coverage run -m pytest -s tests/tests.py"
+
+after_script:
+  - coverage xml
+  - bash <(curl -s https://codecov.io/bash) -v
