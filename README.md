@@ -5,7 +5,7 @@
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/netinvent/command_runner.svg)](http://isitmaintained.com/project/netinvent/command_runner "Percentage of issues still open")
 [![Maintainability](https://api.codeclimate.com/v1/badges/defbe10a354d3705f287/maintainability)](https://codeclimate.com/github/netinvent/command_runner/maintainability)
 [![codecov](https://codecov.io/gh/netinvent/command_runner/branch/master/graph/badge.svg?token=rXqlphOzMh)](https://codecov.io/gh/netinvent/command_runner)
-[![Build Status](https://travis-ci.com/netinvent/command_runner.svg?branch=main)](https://travis-ci.com/netinvent/command_runner)
+[![Build Status](https://travis-ci.com/netinvent/command_runner.svg?branch=master)](https://travis-ci.com/netinvent/command_runner)
 [![GitHub Release](https://img.shields.io/github/release/netinvent/command_runner.svg?label=Latest)](https://github.com/netinvent/command_runner/releases/latest)
 
 
