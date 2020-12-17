@@ -74,7 +74,7 @@ script:
   - "$PYTHON -m pylint -E command_runner/elevate.py"
 # Don't bother to pylint powershell runner since we didn't confiure travis with windows support
 # We need to run pytest with -s since we capture stdout while running pytest
-#  - "$PYTHON -m coverage run -m pytest -s tests/tests.py"
+  - "$PYTHON -m coverage run -m pytest -s tests/tests.py"
 
 after_script:
   - coverage xml
