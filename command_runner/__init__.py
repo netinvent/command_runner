@@ -280,4 +280,3 @@ def deferred_command(command, defer_time=300):
     # We'll create a independent shell process that will not be attached to any stdio interface
     # Our command shall be a single string since shell=True
     subprocess.Popen(deferrer + command, shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
-
