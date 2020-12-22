@@ -28,7 +28,9 @@ It works as wrapper for subprocess.popen and subprocess.check_output that solves
    - Allows live stdout output of current execution
 
    
-### command_runner in a Nutshell
+### command_runner in a nutshell
+
+Install with `pip install command_runner`
 
 The following example will work regardless of the host OS and the Python version.
 
@@ -42,10 +44,11 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 
 ## UAC Elevation / sudo elevation
 
+command_runner package allowing privilege elevation.
 Becomming an admin is fairly easy with command_runner.elevate
 You only have to import the elevate module, and then launch your main function with the elevate function.
 
-# In a Nutshell
+### elevation In a nutshell
 
 ```
 from command_runner.elevate import elevate
@@ -66,7 +69,7 @@ elevate function handles arguments (positional and keyword arguments).
 
 ### Setup
 
-`pip install command_runner`
+`pip install command_runner` or download the latest git release
 
 
 ### Advanced command_runner usage
@@ -130,6 +133,15 @@ print('Am I an admin ? %s' % is_admin())
 
 #### sudo elevation
 
-The elevate module can work with sudo for unix operating systems.
-You must configure sudo to not ask a password for the specific command you're trying to run.
+Initially designed for Windows UAC, command_runner.elevate can also elevate privileges on Linux, using the sudo command.
+This is mainly designed for PyInstaller / Nuitka executables, as it's really not safe to allow automatic privilege elevation of a Python interpreter.
 
+Example for a binary in `/usr/local/bin/my_compiled_python_binary`
+
+You'll have to allow this file to be run with sudo without a password prompt.
+This can be achieved in `/etc/sudoers` file.
+
+Example for Redhat / Rocky Linux, where adding the following line will allow the elevation process to succeed without password:
+```
+someuser ALL= NOPASSWD:/usr/local/bin/my_compiled_python_binary
+```
