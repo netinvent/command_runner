@@ -29,7 +29,7 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "License :: OSI Approved :: BSD License",
     ],
-    description = 'description',
+    description = 'Platform agnostic command execution and privilege elevation',
     author = 'NetInvent - Orsiris de Jong',
     author_email = 'contact@netinvent.fr',
     url = 'https://github.com/netinvent/command_runner',
