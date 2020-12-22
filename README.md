@@ -1,5 +1,5 @@
 # command_runner
-## A toolkit for rapid platform agnostic development
+## A python tool for rapid platform agnostic command execution and elevation
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/netinvent/command_runner.svg)](http://isitmaintained.com/project/netinvent/command_runner "Percentage of issues still open")
