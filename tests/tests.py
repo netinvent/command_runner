@@ -7,16 +7,16 @@
 command_runner is a quick tool to launch commands from Python, get exit code
 and output, and handle most errors that may happen
 
-Versionning semantics:
+Versioning semantics:
     Major version: backward compatibility breaking changes
-    Minor version: New functionnality
+    Minor version: New functionality
     Patch version: Backwards compatible bug fixes
 
 """
 
 __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2015-2020 Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
 __version__ = '0.6.0-dev'
 __build__ = '2020121601'
