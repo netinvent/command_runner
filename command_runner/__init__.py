@@ -48,7 +48,7 @@ except AttributeError:
         """
         pass
 
-logger = getLogger(__name__)
+logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
