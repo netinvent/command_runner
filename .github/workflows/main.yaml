@@ -31,4 +31,5 @@ jobs:
     - name: Test with pytest
       run: |
         export RUNNING_ON_GITHUB_ACTIONS=true
+        export PYTHONPATH=.
         pytest tests
