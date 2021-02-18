@@ -1,4 +1,4 @@
-name: linux-tests
+name: windows-tests
 
 on: [push, pull_request]
 
@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [windows-latest]
         python-version: [2.7, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
 
     steps:
@@ -21,7 +21,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest
-        if [ -f command_runner/requirements.txt ]; then pip install -r command_runner/requirements.txt; fi
+        IF EXISTS "command_runner/requirements.txt ]" pip install -r command_runner/requirements.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -30,6 +30,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        export RUNNING_ON_GITHUB_ACTIONS=true
-        export PYTHONPATH=.
+        set RUNNING_ON_GITHUB_ACTIONS=true
+        set PYTHONPATH=.
         pytest tests
