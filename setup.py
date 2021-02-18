@@ -4,12 +4,12 @@ with open('README.md', 'r', encoding='utf-8') as readme_file:
     long_description = readme_file.read()
 
 setuptools.setup(
-    name = 'command_runner',
+    name='command_runner',
     # We may use find_packages in order to not specify each package manually
     # packages = ['command_runner'],
-    packages = setuptools.find_packages(),
-    version = '0.6.0',
-    classifiers = [
+    packages=setuptools.find_packages(),
+    version='0.6.0',
+    classifiers=[
         # command_runner is mature
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -29,11 +29,11 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "License :: OSI Approved :: BSD License",
     ],
-    description = 'Platform agnostic command execution and privilege elevation',
-    author = 'NetInvent - Orsiris de Jong',
-    author_email = 'contact@netinvent.fr',
-    url = 'https://github.com/netinvent/command_runner',
-    keywords = ['shell', 'execution', 'subprocess', 'check_output', 'wrapper'],
+    description='Platform agnostic command execution tool, also allows UAC/sudo privilege elevation',
+    author='NetInvent - Orsiris de Jong',
+    author_email='contact@netinvent.fr',
+    url='https://github.com/netinvent/command_runner',
+    keywords=['shell', 'execution', 'subprocess', 'check_output', 'wrapper'],
     long_description=long_description,
     long_description_content_type="text/markdown",
     python_requires='>=2.7',
