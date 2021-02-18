@@ -1,5 +1,7 @@
 name: windows-tests
 
+# Remember kids, the default shell here is Powershell
+
 on: [push, pull_request]
 
 jobs:
@@ -21,7 +23,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest
-        IF EXISTS "command_runner/requirements.txt ]" pip install -r command_runner/requirements.txt
+        if (Test-Path "command_runner/requirements.txt") { pip install -r command_runner/requirements.txt }
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
