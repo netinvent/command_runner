@@ -38,6 +38,7 @@ except ImportError:
 try:
     FileNotFoundError
 except NameError:
+    # pylint: disable=W0622 (redefined-builtin)
     FileNotFoundError = IOError
 try:
     TimeoutExpired = subprocess.TimeoutExpired
@@ -238,6 +239,7 @@ def command_runner(command,                     # type: Union[str, List[str]]
         logger.error('Command "{}" failed, file not found: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()
     # OSError can also catch FileNotFoundErrors
+    # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
         logger.error('Command "{}" failed because of OS: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()

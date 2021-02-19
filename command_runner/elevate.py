@@ -70,6 +70,7 @@ def is_admin():
     elif current_os_name == 'posix':
         # Check for root on Posix
         # os.getuid only exists on postix OSes
+        # pylint: disable=E1101 (no-member)
         return os.getuid() == 0
     else:
         raise EnvironmentError('OS does not seem to be supported for admin check. OS: {}'.format(current_os_name))
@@ -108,11 +109,15 @@ def _windows_runner(runner, arguments):
     # import win32process  # monitor process
     # from win32com.shell.shell import ShellExecuteEx
     # from win32com.shell import shellcon
+    # pylint: disable=C1013 (invalid-name)
     childProcess = ShellExecuteEx(nShow=0, fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                                   lpVerb='runas', lpFile=runner, lpParameters=arguments)
 
+    # pylint: disable=C1013 (invalid-name)
     procHandle = childProcess['hProcess']
+    # pylint: disable=I1101 (c-extension-no-member)
     win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
+    # pylint: disable=I1101 (c-extension-no-member)
     exit_code = win32process.GetExitCodeProcess(procHandle)
     return exit_code
 
