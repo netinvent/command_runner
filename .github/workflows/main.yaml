@@ -25,12 +25,12 @@ jobs:
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics command_runner
+        python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics command_runner
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        python -m flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
+        python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Lint with Pylint
       run: |
-        python -m pylint --max-line-length=127 command_runner
+        python -m pylint --disable=C,W,R --max-line-length=127 command_runner
     - name: Test with pytest
       run: |
         export RUNNING_ON_GITHUB_ACTIONS=true

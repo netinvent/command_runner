@@ -32,7 +32,7 @@ jobs:
         python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Lint with Pylint
       run: |
-        python -m pylint --max-line-length=127 command_runner
+        python -m pylint --disable=C,W,R --max-line-length=127 command_runner
     - name: Test with pytest
       run: |
         python -m pytest tests
