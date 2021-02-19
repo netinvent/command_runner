@@ -109,11 +109,11 @@ def _windows_runner(runner, arguments):
     # import win32process  # monitor process
     # from win32com.shell.shell import ShellExecuteEx
     # from win32com.shell import shellcon
-    # pylint: disable=C1013 (invalid-name)
+    # pylint: disable=C0103 (invalid-name)
     childProcess = ShellExecuteEx(nShow=0, fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                                   lpVerb='runas', lpFile=runner, lpParameters=arguments)
 
-    # pylint: disable=C1013 (invalid-name)
+    # pylint: disable=C0103 (invalid-name)
     procHandle = childProcess['hProcess']
     # pylint: disable=I1101 (c-extension-no-member)
     win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
@@ -196,8 +196,8 @@ def elevate(callable_function, *args, **kwargs):
                 logger.debug('Child exited with code "{}"'.format(exit_code))
                 sys.exit(exit_code)
 
-            except Exception as e:
-                logger.info(e)
+            except Exception as exc:
+                logger.info(exc)
                 logger.debug('Trace:', exc_info=True)
                 sys.exit(255)
         # Linux runner and hopefully Unixes
