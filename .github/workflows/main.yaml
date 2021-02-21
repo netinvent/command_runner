@@ -29,16 +29,11 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Lint with Pylint
+      if: python -c "import sys; sys.exit(0 if sys.version_info[0] >= 3 and sys.version_info[1] >= 4 else 1)" 
       run: |
         # Do not run pylint on python 3.3 because isort is not available for python 3.3
-        python -c "import sys; sys.exit(0 if sys.version_info[0] >= 3 and sys.version_info[1] >= 4 else 1)"
-        if [ $? == 0 ]; then
-            pip install pylint
-            python -m pylint --disable=C,W,R --max-line-length=127 command_runner
-        else
-            echo "Not running pylint on elder python versions"
-            (exit 0)
-        fi
+        pip install pylint
+        python -m pylint --disable=C,W,R --max-line-length=127 command_runner
     - name: Test with pytest
       run: |
         export RUNNING_ON_GITHUB_ACTIONS=true
