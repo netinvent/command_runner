@@ -37,6 +37,7 @@ jobs:
             python -m pylint --disable=C,W,R --max-line-length=127 command_runner
         else:
             echo "Not running pylint on elder python versions"
+            (exit 0)
         fi
     - name: Test with pytest
       run: |
