@@ -22,13 +22,12 @@ __version__ = '0.6.1'
 __build__ = '2021022101'
 
 import os
-import sys
-from logging import getLogger
-import subprocess
-from datetime import datetime
-from time import sleep
 import shlex
-
+import subprocess
+import sys
+from datetime import datetime
+from logging import getLogger
+from time import sleep
 
 # Python 2.7 compat fixes (missing typing and FileNotFoundError)
 try:
@@ -53,15 +52,15 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
-def command_runner(command,                     # type: Union[str, List[str]]
-                   valid_exit_codes=None,       # type: Optional[List[int]]
-                   timeout=1800,                # type: Optional[int]
-                   shell=False,                 # type: bool
-                   encoding=None,               # type: str
-                   stdout=None,                 # type: Union[int, str]
-                   stderr=None,                 # type: Union[int, str]
-                   windows_no_window=False,     # type: bool
-                   **kwargs                     # type: Any
+def command_runner(command,  # type: Union[str, List[str]]
+                   valid_exit_codes=None,  # type: Optional[List[int]]
+                   timeout=1800,  # type: Optional[int]
+                   shell=False,  # type: bool
+                   encoding=None,  # type: str
+                   stdout=None,  # type: Union[int, str]
+                   stderr=None,  # type: Union[int, str]
+                   windows_no_window=False,  # type: bool
+                   **kwargs  # type: Any
                    ):
     # type: (...) -> Tuple[Optional[int], str]
     """
@@ -153,10 +152,10 @@ def command_runner(command,                     # type: Union[str, List[str]]
             pass
         return pipe_output
 
-    def _poll_process(process,          # type: Union[subprocess.Popen[str], subprocess.Popen]
-                      timeout,          # type: int
-                      encoding,         # type: str
-                      errors            # type: str
+    def _poll_process(process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+                      timeout,  # type: int
+                      encoding,  # type: str
+                      errors  # type: str
                       ):
         # type: (...) -> Tuple[Optional[int], str]
         """
