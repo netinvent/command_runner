@@ -32,7 +32,15 @@ jobs:
         python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Lint with Pylint
       run: |
-        python -m pylint --disable=C,W,R --max-line-length=127 command_runner
+        # Do not run pylint on python 3.3 because isort is not available for python 3.3
+        python -c "import sys; sys.exit(0 if sys.version_info[0] >= 3 and sys.version_info[1] >= 4 else 1)"
+        If ($lastExitCode -eq "1") {
+            pip install pylint
+            python -m pylint --disable=C,W,R --max-line-length=127 command_runner
+        } else {
+            Write-Output "Not running pylint on elder python versions"
+            $lastExitCode = 0
+        }
     - name: Test with pytest
       run: |
         python -m pytest tests
