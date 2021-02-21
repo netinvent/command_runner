@@ -107,6 +107,15 @@ def test_unix_only_split_command():
         exit_code, _ = command_runner(' '.join(PING_CMD))
         assert exit_code == 0, 'Non splitted command should not trigger an error'
 
+
+def test_create_no_window():
+    """
+    Only used on windows, when we don't want to create a cmd visible windows
+    """
+    if os.name == 'nt':
+        exit_code, _ = command_runner(PING_CMD, windows_no_window=True)
+        assert exit_code ==0, 'Should have worked too'
+
 def test_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
