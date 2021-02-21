@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.4, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
+        python-version: [3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
 
     steps:
     - uses: actions/checkout@v2
@@ -23,6 +23,6 @@ jobs:
         pip install pylint
     - name: Lint with Pylint
       run: |
-        # Do not run pylint on python 3.3 because isort is not available for python 3.3
+        # Do not run pylint on python 3.3 because isort is not available for python 3.3, don't run on python 3.4 because pylint: disable=xxxx does not exist
         pip install pylint
         python -m pylint --disable=C,W,R --max-line-length=127 command_runner
