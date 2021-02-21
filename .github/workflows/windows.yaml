@@ -1,6 +1,7 @@
 name: windows-tests
 
 # Remember kids, the default shell here is Powershell
+# Don't run with python 3.4 as github cannot install it (pip install --upgrade pip fails)
 
 on: [push, pull_request]
 
@@ -11,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        python-version: [2.7, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
+        python-version: [2.7, 3.3, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
 
     steps:
     - uses: actions/checkout@v2
