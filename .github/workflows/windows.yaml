@@ -1,6 +1,8 @@
 name: windows-tests
 
 # Remember kids, the default shell here is Powershell
+# Don't run with python 3.3 as using python -m to run flake8 or pytest will fail.
+# Hence, without python -m, pytest will not have it's PYTHONPATH set to current dir and imports will fail
 # Don't run with python 3.4 as github cannot install it (pip install --upgrade pip fails)
 
 on: [push, pull_request]
@@ -12,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        python-version: [2.7, 3.3, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 'pypy-3.6', 'pypy-3.7']
 
     steps:
     - uses: actions/checkout@v2
@@ -28,9 +30,9 @@ jobs:
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        flake8 --count --select=E9,F63,F7,F82 --show-source --statistics command_runner
+        python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics command_runner
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
+        python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Test with pytest
       run: |
         python -m pytest tests
