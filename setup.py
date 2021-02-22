@@ -10,7 +10,6 @@ __copyright__ = 'Copyright (C) 2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
 __build__ = '2021022201'
 
-import codecs
 import os
 
 import pkg_resources
@@ -19,7 +18,7 @@ import setuptools
 
 def _read_file(filename):
     here = os.path.abspath(os.path.dirname(__file__))
-    with codecs.open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+    with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
         return file_handle.read()
 
 
