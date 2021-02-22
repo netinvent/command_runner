@@ -16,6 +16,8 @@ command_runner is solution for rapid development that tries to solve various pro
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
 
+It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
+
 
 ## command_runner
 
