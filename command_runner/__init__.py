@@ -19,7 +19,7 @@ __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
 __version__ = '0.6.1'
-__build__ = '2021022201'
+__build__ = '2021022202'
 
 import os
 import shlex
@@ -98,8 +98,8 @@ def command_runner(command,  # type: Union[str, List[str]]
     errors = kwargs.pop('errors', 'backslashreplace')  # Don't let encoding issues make you mad
     universal_newlines = kwargs.pop('universal_newlines', False)
     creationflags = kwargs.pop('creationflags', 0)
-    # subprocess.CREATE_NO_WINDOW was added in Python 3.7
-    if windows_no_window and sys.version_info[0] >= 3 and sys.version_info[1] >= 7:
+    # subprocess.CREATE_NO_WINDOW was added in Python 3.7 for Windows OS only
+    if windows_no_window and sys.version_info[0] >= 3 and sys.version_info[1] >= 7 and os.name == 'nt':
         # Disable the following pylint error since the code also runs on nt platform, but
         # triggers an error on Unix
         # pylint: disable=E1101
