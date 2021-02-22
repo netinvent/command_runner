@@ -115,9 +115,8 @@ def test_create_no_window():
     """
     Only used on windows, when we don't want to create a cmd visible windows
     """
-    if os.name == 'nt':
-        exit_code, _ = command_runner(PING_CMD, windows_no_window=True)
-        assert exit_code == 0, 'Should have worked too'
+    exit_code, _ = command_runner(PING_CMD, windows_no_window=True)
+    assert exit_code == 0, 'Should have worked too'
 
 
 def test_deferred_command():
