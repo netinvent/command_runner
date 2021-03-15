@@ -25,8 +25,8 @@ def _read_file(filename):
     else:
         # With python 2.7, open has no encoding parameter, resulting in TypeError
         # Fix with io.open (slow but works)
-        from io import open
-        with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+        from io import open as io_open
+        with io_open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
             return file_handle.read()
 
 
