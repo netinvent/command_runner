@@ -8,8 +8,9 @@ __intname__ = 'command_runner.setup'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2021022201'
+__build__ = '2021031501'
 
+import sys
 import os
 
 import pkg_resources
@@ -18,8 +19,15 @@ import setuptools
 
 def _read_file(filename):
     here = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
-        return file_handle.read()
+    if sys.version_info[0] > 2:
+        with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+            return file_handle.read()
+    else:
+        # With python 2.7, open has no encoding parameter, resulting in TypeError
+        # Fix with io.open (slow but works)
+        from io import open
+        with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+            return file_handle.read()
 
 
 def get_metadata(package_file):
