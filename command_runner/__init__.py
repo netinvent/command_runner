@@ -270,7 +270,7 @@ def deferred_command(command, defer_time=300):
     # type: (str, int) -> NoReturn
     """
     This is basically an ugly hack to launch commands which are detached from parent process
-    Especially useful to launch an auto update/deletion of a running executable after a given amout of
+    Especially useful to launch an auto update/deletion of a running executable after a given amount of
     seconds after it finished
     """
     # Use ping as a standard timer in shell since it's present on virtually *any* system
@@ -282,3 +282,4 @@ def deferred_command(command, defer_time=300):
     # We'll create a independent shell process that will not be attached to any stdio interface
     # Our command shall be a single string since shell=True
     subprocess.Popen(deferrer + command, shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
+
