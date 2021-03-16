@@ -30,8 +30,8 @@ __intname__ = 'command_runner.elevate'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2017-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.3.0'
-__build__ = '2020121701'
+__version__ = '0.3.1'
+__build__ = '2021031601'
 
 from logging import getLogger
 import os
@@ -79,8 +79,10 @@ def is_admin():
 def get_absolute_path(executable):
     # type: (str) -> str
     """
-    Search for sudo executable in order to avoid using shell=True with subprocess
+    Search for full executable path in preferred shell paths
+    This allows avoiding usage of shell=True with subprocess
     """
+
     executable_path = None
     exit_code, output = command_runner(['type', '-p', 'sudo'])
     if exit_code == 0:
@@ -89,7 +91,11 @@ def get_absolute_path(executable):
         if os.path.isfile(output):
             return output
 
-    for path in os.environ.get('PATH', '').split(':'):
+    if os.name == 'nt':
+        split_char = ';'
+    else:
+        split_char = ':'
+    for path in os.environ.get('PATH', '').split(split_char):
         if os.path.isfile(os.path.join(path, executable)):
             executable_path = os.path.join(path, executable)
     return executable_path
