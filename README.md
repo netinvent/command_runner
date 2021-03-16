@@ -26,7 +26,7 @@ It works as wrapper for subprocess.popen and subprocess.check_output that solves
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
       - Handle encoding even on earlier Python implementations
-   - Promises to always return an exit_code regardless of the execution state (even with timeouts, keboard interruptions)
+   - Promises to always return an exit_code regardless of the execution state (even with timeouts, keyboard interruptions)
    - Catch all possible exceptions and log them
    - Allows live stdout output of current execution
 
