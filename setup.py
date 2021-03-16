@@ -70,7 +70,7 @@ requirements = parse_requirements(os.path.join(package_path, 'requirements.txt')
 long_description = _read_file('README.md')
 
 setuptools.setup(
-    name='command_runner',
+    name=PACKAGE_NAME,
     # We may use find_packages in order to not specify each package manually
     # packages = ['command_runner'],
     packages=setuptools.find_packages(),
@@ -97,6 +97,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
     ],
     description='Platform agnostic command and shell execution tool, also allows UAC/sudo privilege elevation',
+    license='BSD',
     author='NetInvent - Orsiris de Jong',
     author_email='contact@netinvent.fr',
     url='https://github.com/netinvent/command_runner',
