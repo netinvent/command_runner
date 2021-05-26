@@ -18,8 +18,8 @@ __intname__ = 'command_runner'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.6.3'
-__build__ = '2021031501'
+__version__ = '0.6.4'
+__build__ = '2021052601'
 
 import os
 import shlex
@@ -142,7 +142,11 @@ def command_runner(command,  # type: Union[str, List[str]]
                 current_output = pipe.readline()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(current_output, bytes):
-                    current_output = current_output.decode(encoding, errors=errors)
+                    try:
+                        current_output = current_output.decode(encoding, errors=errors)
+                    except TypeError:
+                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                        current_output = current_output.decode(encoding, errors='ignore')
                 pipe_output += current_output
                 if live_output:
                     sys.stdout.write(current_output)
