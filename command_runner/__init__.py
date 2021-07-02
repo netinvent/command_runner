@@ -18,8 +18,8 @@ __intname__ = 'command_runner'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__version__ = '0.6.4'
-__build__ = '2021052601'
+__version__ = '0.7.0'
+__build__ = '2021061101'
 
 import os
 import shlex
@@ -28,6 +28,13 @@ import sys
 from datetime import datetime
 from logging import getLogger
 from time import sleep
+# Python 2.7 compat fixes (queue was Queue)
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
+import threading
+
 
 # Python 2.7 compat fixes (missing typing and FileNotFoundError)
 try:
@@ -50,6 +57,27 @@ except AttributeError:
 
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
+
+
+def thread_with_result_queue(fn):
+    """
+    Python 2.7 compatible implementation of concurrent.futures
+    Executes decorated function as thread and adds a queue for result communication
+    """
+
+    def wrapped_fn(queue, *args, **kwargs):
+        result = fn(*args, **kwargs)
+        queue.put(result)
+
+    def wrapper(*args, **kwargs):
+        queue = Queue.Queue()
+
+        child_thread = threading.Thread(target=wrapped_fn, args=(queue,)+args, kwargs=kwargs)
+        child_thread.start()
+        child_thread.result_queue = queue
+        return child_thread
+
+    return wrapper
 
 
 def command_runner(command,  # type: Union[str, List[str]]
@@ -130,6 +158,7 @@ def command_runner(command,  # type: Union[str, List[str]]
         _stderr = subprocess.STDOUT
         stderr_to_file = False
 
+    @thread_with_result_queue
     def _pipe_read(pipe, read_timeout, encoding, errors):
         # type: (subprocess.PIPE, Union[int, float], str, str) -> str
         """
@@ -174,8 +203,14 @@ def command_runner(command,  # type: Union[str, List[str]]
         begin_time = datetime.now()
         timeout_reached = False
         while process.poll() is None:
-            pipe_output = _pipe_read(process.stdout, read_timeout=1, encoding=encoding, errors=errors)
-            output += pipe_output
+            child = _pipe_read(process.stdout, read_timeout=1, encoding=encoding, errors=errors)
+            try:
+                output += child.result_queue.get(timeout=1)
+            except Queue.Empty:
+                pass
+            except ValueError:
+                # What happens when str cannot be concatenated
+                pass
             if timeout:
                 if (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
@@ -192,10 +227,18 @@ def command_runner(command,  # type: Union[str, List[str]]
 
         exit_code = process.poll()
         if timeout:
-            final_read_timeout = timeout - (datetime.now() - begin_time).total_seconds() + 1
+            # Let's wait a second more so we may get the remaining queue content after process is to be ended
+            final_read_timeout = max(1, timeout - (datetime.now() - begin_time).total_seconds(), 1)
         else:
             final_read_timeout = 1
-        output += _pipe_read(process.stdout, read_timeout=final_read_timeout, encoding=encoding, errors=errors)
+        child = _pipe_read(process.stdout, read_timeout=final_read_timeout, encoding=encoding, errors=errors)
+        try:
+            output += child.result_queue.get(timeout=final_read_timeout)
+        except Queue.Empty:
+            pass
+        except ValueError:
+            # What happens when str cannot be concatenated
+            pass
         if timeout_reached:
             raise TimeoutExpired(process, timeout)
         return exit_code, output
@@ -286,4 +329,3 @@ def deferred_command(command, defer_time=300):
     # We'll create a independent shell process that will not be attached to any stdio interface
     # Our command shall be a single string since shell=True
     subprocess.Popen(deferrer + command, shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
-
