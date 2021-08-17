@@ -56,7 +56,24 @@ except AttributeError:
         Basic redeclaration when subprocess.TimeoutExpired does not exist, python <= 3.3
         """
 
-        pass
+        def __init__(self, cmd, timeout, output=None, stderr=None):
+            self.cmd = cmd
+            self.timeout = timeout
+            self.output = output
+            self.stderr = stderr
+
+        def __str__(self):
+            return "Command '%s' timed out after %s seconds" % (self.cmd, self.timeout)
+
+        @property
+        def stdout(self):
+            return self.output
+
+        @stdout.setter
+        def stdout(self, value):
+            # There's no obvious reason to set this, but allow it anyway so
+            # .stdout is a transparent alias for .output
+            self.output = value
 
 
 logger = getLogger(__intname__)
@@ -236,8 +253,8 @@ def command_runner(
 
         while process.poll() is None:
             try:
-                if os.name == 'nt':
-                    output += output_queue.get(timeout=.1)
+                if os.name == "nt":
+                    output += output_queue.get(timeout=0.1)
                 else:
                     output += _read_pipe(process, None, encoding, errors)
             except queue.Empty:
@@ -263,8 +280,8 @@ def command_runner(
 
         # Try to get remaining data in output queue after process is terminated
         try:
-            if os.name == 'nt':
-                output += output_queue.get(timeout=.1)
+            if os.name == "nt":
+                output += output_queue.get(timeout=0.1)
             else:
                 output += _read_pipe(process, None, encoding, errors)
         except queue.Empty:
@@ -350,17 +367,17 @@ def command_runner(
         logger.error('Command "{}" failed because of OS: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()
     except TimeoutExpired as exc:
-        message = 'Timeout {} seconds expired for command "{}" execution.'.format(
-            timeout, command
+        message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
+            timeout, command, exc.output
         )
         logger.error(message)
         if stdout_to_file:
             _stdout.write(message.encode(encoding, errors=errors))
-        (
-            exit_code,
-            output,
-        ) = -254, "Timeout of {} seconds expired: original output was: {}".format(
-            timeout, exc.output
+        (exit_code, output,) = (
+            -254,
+            'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
+                timeout, command, exc.output
+            ),
         )
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
