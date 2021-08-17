@@ -217,7 +217,7 @@ def command_runner(
         try:
             # make sure we also enforce timeout if process is not killable so the thread gets stopped no matter what
             while process.poll() is None:
-                if timeout and (datetime.now() - begin_time).total_seconds() <= timeout:
+                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     break
 
                 pipe_output = process.stdout.read()
@@ -443,5 +443,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-print(command_runner('ping 127.0.0.1'))
