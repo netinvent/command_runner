@@ -283,7 +283,7 @@ def command_runner(
             if os.name == "nt":
                 output += output_queue.get(timeout=0.1)
             else:
-                output += _read_pipe(process, None, encoding, errors)
+                output += _read_pipe(process, None, encoding, errors, timeout)
         except queue.Empty:
             pass
         except (ValueError, TypeError):
