@@ -21,15 +21,18 @@ It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality
 
 ## command_runner
 
+The main promise command_runner can do is to make sure to never have a blocking command, with timeout usage.
+
 It works as wrapper for subprocess.popen and subprocess.check_output that solves:
    - Platform differences
+    - Handle timeouts even for windows GUI applications that don't return anything to stdout
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
-      - Handle timeouts even for windows GUI applications that don't return anything to stdout
       - Handle encoding even on earlier Python implementations
    - Promises to always return the exit code and output regardless of the execution state (even with timeouts, keyboard interruptions)
    - Catch all possible exceptions and log them
    - Allows live stdout output of current execution
+
 
    
 ### command_runner in a nutshell
@@ -111,14 +114,16 @@ Feel free to lower / higher that setting with
 exit_code, command_runner('ping 127.0.0.1', timeout=30)
 ```
 
-Be aware that when running under windows, using shell=True will stop the shell thread but not the child thread.
-Hance shell=True is not compatible with timeouts under windows.
-shell=False can be used for any non cmd integrated command by providing it's full path.
+### Remarks on processes
+
+Using `shell=True` will spawn a shell which will spawn the desired child process.
+Be aware that under windows, no direct process tree is available.
+We fixed this by using `taskkill /F /T /PID parentPID` in order to kill the process tree.
 
 
 #### Disabling logs
 
-Whenever you want another loglevel for command_runner, you might do with the following statement in your codeclimate
+Whenever you want another loglevel for command_runner, you might do with the following statement in your code
 
 ```
 import logging
