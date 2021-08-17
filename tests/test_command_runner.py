@@ -31,7 +31,7 @@ else:
     # TODO shlex.split(command, posix=True) test for Linux
 
 
-def xtest_standard_ping_with_encoding():
+def test_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
     """
@@ -40,7 +40,7 @@ def xtest_standard_ping_with_encoding():
     assert exit_code == 0, 'Exit code should be 0 for ping command'
 
 
-def xtest_timeout():
+def test_timeout():
     """
     Test command_runner with a timeout
     """
@@ -50,7 +50,7 @@ def xtest_timeout():
     assert 'Timeout' in output, 'Output should have timeout'
 
 
-def xtest_no_timeout():
+def test_no_timeout():
     """
     Test with setting timeout=None
     """
@@ -59,7 +59,7 @@ def xtest_no_timeout():
     assert exit_code == 0, 'Without timeout, command should have run'
 
 
-def xtest_live_output():
+def test_live_output():
     """
     Test command_runner with live output to stdout
     """
@@ -67,7 +67,7 @@ def xtest_live_output():
     assert exit_code == 0, 'Exit code should be 0 for ping command'
 
 
-def xtest_not_found():
+def test_not_found():
     """
     Test command_runner with an unexisting command
     """
@@ -76,7 +76,7 @@ def xtest_not_found():
     assert exit_code == -253, 'Unknown command should trigger a -253 exit code'
 
 
-def xtest_file_output():
+def test_file_output():
     """
     Test commandr_runner with file output instead of stdout
     """
@@ -94,7 +94,7 @@ def xtest_file_output():
     os.remove(stderr_filename)
 
 
-def xtest_valid_exit_codes():
+def test_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
     """
@@ -102,7 +102,7 @@ def xtest_valid_exit_codes():
     assert exit_code in [0, 1, 2], 'Exit code not in valid list'
 
 
-def xtest_unix_only_split_command():
+def test_unix_only_split_command():
     """
     This test is specifically written when command_runner receives a str command instead of a list on unix
     """
@@ -111,7 +111,7 @@ def xtest_unix_only_split_command():
         assert exit_code == 0, 'Non splitted command should not trigger an error'
 
 
-def xtest_create_no_window():
+def test_create_no_window():
     """
     Only used on windows, when we don't want to create a cmd visible windows
     """
@@ -119,7 +119,7 @@ def xtest_create_no_window():
     assert exit_code == 0, 'Should have worked too'
 
 
-def xtest_deferred_command():
+def test_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
     """
@@ -145,6 +145,7 @@ def test_read_file():
         print('Comparaison round {}'.format(round))
         if os.name == 'nt':
             exit_code, output = command_runner('type {}'.format(test_filename), shell=True)
+            output = output.replace('\r\n', '\n')
         else:
             exit_code, output = command_runner('cat {}'.format(test_filename), shell=True)
 
