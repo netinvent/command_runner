@@ -206,6 +206,7 @@ def command_runner(
         encoding,  # type: str
         errors,  # type: str
         timeout,  # type: int
+        begin_time,  # type: datetime.timestamp
     ):
         # type: (...) -> Optional[str]
         """
@@ -213,10 +214,9 @@ def command_runner(
         Might be threaded on windows since readline() might be blocking on GUI apps
         """
 
-        begin_time = datetime.now()
         try:
-            # make sure we also enforce timeout if process is not killable so the thread gets stopped no matter what
-            while process.poll() is None:
+            # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
+            while True:
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     break
 
@@ -278,7 +278,7 @@ def command_runner(
             output_queue = queue.Queue()
             read_pipe_thread = threading.Thread(
                 target=_read_pipe,
-                args=(process, output_queue, encoding, errors, timeout),
+                args=(process, output_queue, encoding, errors, timeout, begin_time),
             )
             read_pipe_thread.daemon = True
             read_pipe_thread.start()
@@ -288,7 +288,7 @@ def command_runner(
                 if not no_threads:
                     output += output_queue.get(timeout=0.1)
                 else:
-                    output += _read_pipe(process, None, encoding, errors, timeout)
+                    output += _read_pipe(process, None, encoding, errors, timeout, begin_time)
             except queue.Empty:
                 pass
             except (ValueError, TypeError):
@@ -315,9 +315,9 @@ def command_runner(
         # Try to get remaining data in output queue after process is terminated
         try:
             if not no_threads:
-                output += output_queue.get(timeout=11)
+                output += output_queue.get(timeout=10)
             else:
-                output += _read_pipe(process, None, encoding, errors, timeout)
+                output += _read_pipe(process, None, encoding, errors, timeout, begin_time)
         except queue.Empty:
             pass
         except (ValueError, TypeError):
