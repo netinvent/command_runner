@@ -206,7 +206,7 @@ def command_runner(
             # make sure we also enforce timeout if process is not killable so the thread gets stopped no matter what
             while (
                 process.poll() is None
-                and (datetime.now() - begin_time).total_seconds() <= timeout
+                and timeout and (datetime.now() - begin_time).total_seconds() <= timeout
             ):
                 pipe_output = process.stdout.read()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
@@ -269,18 +269,17 @@ def command_runner(
                 # What happens when str cannot be concatenated
                 pass
 
-            if timeout:
-                if (datetime.now() - begin_time).total_seconds() > timeout:
-                    # Try to terminate nicely before killing the process
-                    if os.name == "nt":
-                        _windows_child_kill(process.pid)
-                    process.terminate()
-                    # Let the process terminate itself before trying to kill it not nicely
-                    # Under windows, terminate() and kill() are equivalent
-                    sleep(0.5)
-                    if process.poll() is None:
-                        process.kill()
-                    timeout_reached = True
+            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                # Try to terminate nicely before killing the process
+                if os.name == "nt":
+                    _windows_child_kill(process.pid)
+                process.terminate()
+                # Let the process terminate itself before trying to kill it not nicely
+                # Under windows, terminate() and kill() are equivalent
+                sleep(0.5)
+                if process.poll() is None:
+                    process.kill()
+                timeout_reached = True
             sleep(0.1)
         exit_code = process.poll()
 
