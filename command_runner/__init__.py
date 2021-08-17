@@ -76,6 +76,18 @@ except AttributeError:
             self.output = value
 
 
+class KbdInterruptGetOutput(BaseException):
+    """
+    Make sure we get the current output when KeyboardInterrupt is made
+    """
+    def __init__(self, output):
+        self._output = output
+
+    @property
+    def output(self):
+        return self._output
+
+
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
@@ -268,6 +280,8 @@ def command_runner(
             except (ValueError, TypeError):
                 # What happens when str cannot be concatenated
                 pass
+            except KeyboardInterrupt:
+                raise KbdInterruptGetOutput(output)
 
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 # Try to terminate nicely before killing the process
@@ -332,9 +346,9 @@ def command_runner(
 
         try:
             exit_code, output = _poll_process(process, timeout, encoding, errors)
-        except KeyboardInterrupt:
+        except KbdInterruptGetOutput as exc:
             exit_code = -252
-            output = "KeyboardInterrupted"
+            output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
                 if os.name == 'nt':
                     _windows_child_kill(process.pid)
@@ -429,3 +443,5 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+print(command_runner('ping 127.0.0.1'))
