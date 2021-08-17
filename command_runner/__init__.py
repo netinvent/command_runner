@@ -336,6 +336,8 @@ def command_runner(
             exit_code = -252
             output = "KeyboardInterrupted"
             try:
+                if os.name == 'nt':
+                    _windows_child_kill(process.pid)
                 process.kill()
             except AttributeError:
                 pass
