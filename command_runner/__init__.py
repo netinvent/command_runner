@@ -237,8 +237,12 @@ def command_runner(
                         # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
                         pipe_error_output = pipe_error_output.decode(encoding, errors="ignore")
                 if live_output:
-                    sys.stdout.write(pipe_output)
-                    sys.stderr.write(pipe_error_output)
+                    # sys.stdxxx.write may fail with TypeError when argument is None
+                    # observed on python 3.5 and pypy 3.7
+                    if pipe_output:
+                        sys.stdout.write(pipe_output)
+                    if pipe_error_output:
+                        sys.stderr.write(pipe_error_output)
                 if output_queue:
                     output_queue.put(pipe_output)
                     output_queue.put(pipe_error_output)
