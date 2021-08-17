@@ -220,7 +220,8 @@ def command_runner(
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     break
 
-                pipe_output = process.stdout.read()
+                # pipe_output = process.stdout.readline()
+                pipe_output, pipe_error_output = process.communicate()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(pipe_output, bytes):
                     try:
@@ -228,15 +229,24 @@ def command_runner(
                     except TypeError:
                         # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
                         pipe_output = pipe_output.decode(encoding, errors="ignore")
+
+                if isinstance(pipe_error_output, bytes):
+                    try:
+                        pipe_error_output = pipe_error_output.decode(encoding, errors=errors)
+                    except TypeError:
+                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                        pipe_error_output = pipe_error_output.decode(encoding, errors="ignore")
                 if live_output:
                     sys.stdout.write(pipe_output)
+                    sys.stderr.write(pipe_error_output)
                 if output_queue:
                     output_queue.put(pipe_output)
+                    output_queue.put(pipe_error_output)
                 else:
-                    return pipe_output
+                    return pipe_output + pipe_error_output
 
             process.stdout.close()
-        # Pipe may not have readline() anymore when process gets killed
+        # process may not have anymore pipe attributes when process gets killed
         except AttributeError:
             pass
 
@@ -443,3 +453,5 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+command_runner('notepad.exe', shell=True, timeout=3, windows_no_thread=True)
