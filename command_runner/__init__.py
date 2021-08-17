@@ -234,13 +234,12 @@ def command_runner(
             read_pipe_thread.daemon = True
             read_pipe_thread.start()
 
-            output_cmd = "output_queue.get(timeout=.1)"
-        else:
-            output_cmd = "_read_pipe(process, None, encoding, errors)"
-
         while process.poll() is None:
             try:
-                output += eval(output_cmd)
+                if os.name == 'nt':
+                    output += output_queue.get(timeout=.1)
+                else:
+                    output += _read_pipe(process, None, encoding, errors)
             except queue.Empty:
                 pass
             except (ValueError, TypeError):
@@ -264,7 +263,10 @@ def command_runner(
 
         # Try to get remaining data in output queue after process is terminated
         try:
-            output += eval(output_cmd)
+            if os.name == 'nt':
+                output += output_queue.get(timeout=.1)
+            else:
+                output += _read_pipe(process, None, encoding, errors)
         except queue.Empty:
             pass
         except (ValueError, TypeError):
