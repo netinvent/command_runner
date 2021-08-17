@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2021022201'
+__build__ = '2021081701'
 
 from command_runner import *
 
@@ -130,3 +130,23 @@ def test_deferred_command():
     sleep(6)
     assert os.path.isfile(test_filename) is True, 'File should exist now'
     os.remove(test_filename)
+
+
+def test_read_file():
+    """
+    Read a couple of times the same file to be sure we don't get garbage from _read_pipe() when threaded
+    """
+    test_filename = 'README.md'
+    with open(test_filename, 'r') as file:
+        file_content = file.read()
+
+    for _ in range(0, 12):
+        if os.name == 'nt':
+            exit_code, output = command_runner('type {}'.format(test_filename), shell=True)
+        else:
+            exit_code, output = command_runner('cat {}'.format(test_filename), shell=True)
+
+        assert exit_code == 0, 'Did not suceed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
+                                                                                             output)
+        assert file_content == output, 'File content and output are not identical\nFile content\n{}Outpu\n{}'.format(
+            file_content, output)
