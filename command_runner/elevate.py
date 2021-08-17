@@ -26,19 +26,19 @@ Versioning semantics:
 
 """
 
-__intname__ = 'command_runner.elevate'
-__author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2017-2021 Orsiris de Jong'
-__licence__ = 'BSD 3 Clause'
-__version__ = '0.3.1'
-__build__ = '2021031601'
+__intname__ = "command_runner.elevate"
+__author__ = "Orsiris de Jong"
+__copyright__ = "Copyright (C) 2017-2021 Orsiris de Jong"
+__licence__ = "BSD 3 Clause"
+__version__ = "0.3.1"
+__build__ = "2021031601"
 
 from logging import getLogger
 import os
 import sys
 from command_runner import command_runner
 
-if os.name == 'nt':
+if os.name == "nt":
     try:
         import win32event  # monitor process
         import win32process  # monitor process
@@ -46,7 +46,9 @@ if os.name == 'nt':
         from win32com.shell.shell import IsUserAnAdmin
         from win32com.shell import shellcon
     except ImportError:
-        raise ImportError('Cannot import ctypes for checking admin privileges on Windows platform.')
+        raise ImportError(
+            "Cannot import ctypes for checking admin privileges on Windows platform."
+        )
 
 logger = getLogger(__name__)
 
@@ -62,18 +64,22 @@ def is_admin():
     current_os_name = os.name
 
     # Works with XP SP2 +
-    if current_os_name == 'nt':
+    if current_os_name == "nt":
         try:
             return IsUserAnAdmin()
         except Exception:
-            raise EnvironmentError('Cannot check admin privileges')
-    elif current_os_name == 'posix':
+            raise EnvironmentError("Cannot check admin privileges")
+    elif current_os_name == "posix":
         # Check for root on Posix
         # os.getuid only exists on postix OSes
         # pylint: disable=E1101 (no-member)
         return os.getuid() == 0
     else:
-        raise EnvironmentError('OS does not seem to be supported for admin check. OS: {}'.format(current_os_name))
+        raise EnvironmentError(
+            "OS does not seem to be supported for admin check. OS: {}".format(
+                current_os_name
+            )
+        )
 
 
 def get_absolute_path(executable):
@@ -84,18 +90,18 @@ def get_absolute_path(executable):
     """
 
     executable_path = None
-    exit_code, output = command_runner(['type', '-p', 'sudo'])
+    exit_code, output = command_runner(["type", "-p", "sudo"])
     if exit_code == 0:
         # Remove ending '\n'' character
         output = output.strip()
         if os.path.isfile(output):
             return output
 
-    if os.name == 'nt':
-        split_char = ';'
+    if os.name == "nt":
+        split_char = ";"
     else:
-        split_char = ':'
-    for path in os.environ.get('PATH', '').split(split_char):
+        split_char = ":"
+    for path in os.environ.get("PATH", "").split(split_char):
         if os.path.isfile(os.path.join(path, executable)):
             executable_path = os.path.join(path, executable)
     return executable_path
@@ -116,11 +122,16 @@ def _windows_runner(runner, arguments):
     # from win32com.shell.shell import ShellExecuteEx
     # from win32com.shell import shellcon
     # pylint: disable=C0103 (invalid-name)
-    childProcess = ShellExecuteEx(nShow=0, fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='runas', lpFile=runner, lpParameters=arguments)
+    childProcess = ShellExecuteEx(
+        nShow=0,
+        fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+        lpVerb="runas",
+        lpFile=runner,
+        lpParameters=arguments,
+    )
 
     # pylint: disable=C0103 (invalid-name)
-    procHandle = childProcess['hProcess']
+    procHandle = childProcess["hProcess"]
     # pylint: disable=I1101 (c-extension-no-member)
     win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
     # pylint: disable=I1101 (c-extension-no-member)
@@ -155,7 +166,7 @@ def _check_environment():
     is_nuitka_compiled = False
     try:
         # Actual if statement not needed, but keeps code inspectors more happy
-        if __nuitka_binary_dir or '__compiled__' in globals() is not None:
+        if __nuitka_binary_dir or "__compiled__" in globals() is not None:
             is_nuitka_compiled = True
     except NameError:
         pass
@@ -193,10 +204,10 @@ def elevate(callable_function, *args, **kwargs):
     else:
         runner, arguments = _check_environment()
         # Windows runner
-        if os.name == 'nt':
+        if os.name == "nt":
             # Re-run the script with admin rights
             # Join arguments and double quote each argument in order to prevent space separation
-            arguments = ' '.join('"' + arg + '"' for arg in arguments)
+            arguments = " ".join('"' + arg + '"' for arg in arguments)
             try:
                 exit_code = _windows_runner(runner, arguments)
                 logger.debug('Child exited with code "{}"'.format(exit_code))
@@ -204,20 +215,21 @@ def elevate(callable_function, *args, **kwargs):
 
             except Exception as exc:
                 logger.info(exc)
-                logger.debug('Trace:', exc_info=True)
+                logger.debug("Trace:", exc_info=True)
                 sys.exit(255)
         # Linux runner and hopefully Unixes
         else:
             # Re-run the script but with sudo
-            sudo_path = get_absolute_path('sudo')
+            sudo_path = get_absolute_path("sudo")
             if sudo_path is None:
-                logger.error('Cannot find sudo executable. Trying to run without privileges elevation.')
+                logger.error(
+                    "Cannot find sudo executable. Trying to run without privileges elevation."
+                )
                 callable_function(*args, **kwargs)
             else:
-                command = ['sudo', runner] + arguments
+                command = ["sudo", runner] + arguments
                 # Optionnaly might also pass a stdout PIPE to command_runner so we get live output
-                exit_code, output = command_runner(command, shell=False,
-                                                   timeout=None)
+                exit_code, output = command_runner(command, shell=False, timeout=None)
 
-                logger.info('Child output: {}'.format(output))
+                logger.info("Child output: {}".format(output))
                 sys.exit(exit_code)

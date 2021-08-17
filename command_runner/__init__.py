@@ -246,7 +246,8 @@ def command_runner(
         if os.name == "nt":
             output_queue = queue.Queue()
             read_pipe_thread = threading.Thread(
-                target=_read_pipe, args=(process, output_queue, encoding, errors, timeout)
+                target=_read_pipe,
+                args=(process, output_queue, encoding, errors, timeout),
             )
             read_pipe_thread.daemon = True
             read_pipe_thread.start()
