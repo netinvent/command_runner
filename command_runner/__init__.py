@@ -18,8 +18,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "0.7.0"
-__build__ = "2021080201"
+__version__ = "0.8.0-dev"
+__build__ = "2021081701"
 
 import os
 import shlex
@@ -31,9 +31,9 @@ from time import sleep
 
 # Python 2.7 compat fixes (queue was Queue)
 try:
-    import Queue
+    import queue
 except ImportError:
-    import queue as Queue
+    import Queue as queue
 import threading
 
 
@@ -63,29 +63,6 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
-def thread_with_result_queue(fn):
-    """
-    Python 2.7 compatible implementation of concurrent.futures
-    Executes decorated function as thread and adds a queue for result communication
-    """
-
-    def wrapped_fn(queue, *args, **kwargs):
-        result = fn(*args, **kwargs)
-        queue.put(result)
-
-    def wrapper(*args, **kwargs):
-        queue = Queue.Queue()
-
-        child_thread = threading.Thread(
-            target=wrapped_fn, args=(queue,) + args, kwargs=kwargs
-        )
-        child_thread.start()
-        child_thread.result_queue = queue
-        return child_thread
-
-    return wrapper
-
-
 def command_runner(
     command,  # type: Union[str, List[str]]
     valid_exit_codes=None,  # type: Optional[List[int]]
@@ -110,7 +87,8 @@ def command_runner(
 
     Accepts all of subprocess.popen arguments
 
-    Whenever we can, we need to avoid shell=True in order to preseve better security
+    Whenever we can, we need to avoid shell=True in order to preserve better security
+    Avoiding shell=True involves passing absolute paths to executables since we don't have shell PATH environment
 
     When no stdout option is given, we'll get output into the returned tuple
     When stdout = PIPE or subprocess.PIPE, output is also displayed on the fly on stdout
@@ -172,38 +150,61 @@ def command_runner(
         _stderr = subprocess.STDOUT
         stderr_to_file = False
 
-    @thread_with_result_queue
-    def _pipe_read(pipe, read_timeout, encoding, errors):
-        # type: (subprocess.PIPE, Union[int, float], str, str) -> str
+    def _windows_child_kill(
+        pid,  # type: int
+    ):
+        # type: (...) -> None
         """
-        Read pipe will read from subprocess.PIPE for at most 1 second
+        windows does not have child process trees
+        So in order to deal with child process kills, we need to use a system tool here
         """
-        pipe_output = ""
+        dev_null = open(os.devnull, "w")
+        subprocess.call(
+            ["taskkill", "/F", "/T", "/PID", str(pid)],
+            stdin=dev_null,
+            stdout=dev_null,
+            stderr=dev_null,
+            close_fds=True,
+        )
+
+    def _read_pipe(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        output_queue,  # type: Optional[queue.Queue]
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # type: (...) -> Optional[str]
+        """
+        will read from subprocess.PIPE
+        Might be threaded on windows since readline() might be blocking on GUI apps
+        """
+
         begin_time = datetime.now()
         try:
-            while True:
-                current_output = pipe.readline()
+            # make sure we also enforce timeout if process is not killable so the thread gets stopped no matter what
+            while (
+                process.poll() is None
+                and (datetime.now() - begin_time).total_seconds() <= timeout
+            ):
+                pipe_output = process.stdout.readline()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                if isinstance(current_output, bytes):
+                if isinstance(pipe_output, bytes):
                     try:
-                        current_output = current_output.decode(encoding, errors=errors)
+                        pipe_output = pipe_output.decode(encoding, errors=errors)
                     except TypeError:
                         # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                        current_output = current_output.decode(
-                            encoding, errors="ignore"
-                        )
-                pipe_output += current_output
+                        pipe_output = pipe_output.decode(encoding, errors="ignore")
                 if live_output:
-                    sys.stdout.write(current_output)
-                if (
-                    len(current_output) <= 0
-                    or (datetime.now() - begin_time).total_seconds() > read_timeout
-                ):
-                    break
+                    sys.stdout.write(pipe_output)
+                if output_queue:
+                    output_queue.put(pipe_output)
+                else:
+                    return pipe_output
+
+            process.stdout.close()
         # Pipe may not have readline() anymore when process gets killed
         except AttributeError:
-            pass
-        return pipe_output
+            process.stdout.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -222,20 +223,35 @@ def command_runner(
         output = ""
         begin_time = datetime.now()
         timeout_reached = False
-        while process.poll() is None:
-            child = _pipe_read(
-                process.stdout, read_timeout=1, encoding=encoding, errors=errors
+
+        # process.stdout.readline() is blocking under windows so we need to setup a thread in order
+        # to get it's output
+        if os.name == "nt":
+            output_queue = queue.Queue()
+            read_pipe_thread = threading.Thread(
+                target=_read_pipe, args=(process, output_queue, encoding, errors)
             )
+            read_pipe_thread.daemon = True
+            read_pipe_thread.start()
+
+            output_cmd = "output_queue.get(timeout=.1)"
+        else:
+            output_cmd = "_read_pipe(process, None, encoding, errors)"
+
+        while process.poll() is None:
             try:
-                output += child.result_queue.get(timeout=1)
-            except Queue.Empty:
+                output += eval(output_cmd)
+            except queue.Empty:
                 pass
             except ValueError:
                 # What happens when str cannot be concatenated
                 pass
+
             if timeout:
                 if (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
+                    if os.name == "nt":
+                        _windows_child_kill(process.pid)
                     process.terminate()
                     # Let the process terminate itself before trying to kill it not nicely
                     # Under windows, terminate() and kill() are equivalent
@@ -243,33 +259,20 @@ def command_runner(
                     if process.poll() is None:
                         process.kill()
                     timeout_reached = True
-
-        # Get remaining output from process after a grace period
-        sleep(0.5)
-
+            sleep(0.1)
         exit_code = process.poll()
-        if timeout:
-            # Let's wait a second more so we may get the remaining queue content after process is to be ended
-            final_read_timeout = max(
-                1, timeout - (datetime.now() - begin_time).total_seconds(), 1
-            )
-        else:
-            final_read_timeout = 1
-        child = _pipe_read(
-            process.stdout,
-            read_timeout=final_read_timeout,
-            encoding=encoding,
-            errors=errors,
-        )
+
+        # Try to get remaining data in output queue after process is terminated
         try:
-            output += child.result_queue.get(timeout=final_read_timeout)
-        except Queue.Empty:
+            output += eval(output_cmd)
+        except queue.Empty:
             pass
         except ValueError:
             # What happens when str cannot be concatenated
             pass
+
         if timeout_reached:
-            raise TimeoutExpired(process, timeout)
+            raise TimeoutExpired(process, timeout, output)
         return exit_code, output
 
     try:
@@ -344,14 +347,19 @@ def command_runner(
     except (OSError, IOError) as exc:
         logger.error('Command "{}" failed because of OS: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()
-    except TimeoutExpired:
+    except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution.'.format(
             timeout, command
         )
         logger.error(message)
         if stdout_to_file:
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = -254, "Timeout of {} seconds expired.".format(timeout)
+        (
+            exit_code,
+            output,
+        ) = -254, "Timeout of {} seconds expired: original output was: {}".format(
+            timeout, exc.output
+        )
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
