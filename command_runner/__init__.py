@@ -208,7 +208,7 @@ def command_runner(
                 process.poll() is None
                 and (datetime.now() - begin_time).total_seconds() <= timeout
             ):
-                pipe_output = process.stdout.readline()
+                pipe_output = process.stdout.read()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(pipe_output, bytes):
                     try:
