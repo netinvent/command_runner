@@ -204,10 +204,10 @@ def command_runner(
         begin_time = datetime.now()
         try:
             # make sure we also enforce timeout if process is not killable so the thread gets stopped no matter what
-            while (
-                process.poll() is None
-                and timeout and (datetime.now() - begin_time).total_seconds() <= timeout
-            ):
+            while process.poll() is None:
+                if timeout and (datetime.now() - begin_time).total_seconds() <= timeout:
+                    break
+
                 pipe_output = process.stdout.read()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(pipe_output, bytes):
@@ -280,7 +280,7 @@ def command_runner(
                 if process.poll() is None:
                     process.kill()
                 timeout_reached = True
-            sleep(0.1)
+                sleep(0.1)
         exit_code = process.poll()
 
         # Try to get remaining data in output queue after process is terminated
