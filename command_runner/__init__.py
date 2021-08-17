@@ -243,7 +243,7 @@ def command_runner(
                 output += eval(output_cmd)
             except queue.Empty:
                 pass
-            except ValueError:
+            except (ValueError, TypeError):
                 # What happens when str cannot be concatenated
                 pass
 
@@ -267,7 +267,7 @@ def command_runner(
             output += eval(output_cmd)
         except queue.Empty:
             pass
-        except ValueError:
+        except (ValueError, TypeError):
             # What happens when str cannot be concatenated
             pass
 
