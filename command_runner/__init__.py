@@ -188,6 +188,7 @@ def command_runner(
         output_queue,  # type: Optional[queue.Queue]
         encoding,  # type: str
         errors,  # type: str
+        timeout,  # type: int
     ):
         # type: (...) -> Optional[str]
         """
@@ -245,7 +246,7 @@ def command_runner(
         if os.name == "nt":
             output_queue = queue.Queue()
             read_pipe_thread = threading.Thread(
-                target=_read_pipe, args=(process, output_queue, encoding, errors)
+                target=_read_pipe, args=(process, output_queue, encoding, errors, timeout)
             )
             read_pipe_thread.daemon = True
             read_pipe_thread.start()
@@ -255,7 +256,7 @@ def command_runner(
                 if os.name == "nt":
                     output += output_queue.get(timeout=0.1)
                 else:
-                    output += _read_pipe(process, None, encoding, errors)
+                    output += _read_pipe(process, None, encoding, errors, timeout)
             except queue.Empty:
                 pass
             except (ValueError, TypeError):
