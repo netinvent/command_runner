@@ -181,7 +181,6 @@ def command_runner(
             stdin=dev_null,
             stdout=dev_null,
             stderr=dev_null,
-            close_fds=True,
         )
 
     def _read_pipe(
