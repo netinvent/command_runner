@@ -204,7 +204,7 @@ def command_runner(
             process.stdout.close()
         # Pipe may not have readline() anymore when process gets killed
         except AttributeError:
-            process.stdout.close()
+            pass
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
