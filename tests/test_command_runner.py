@@ -150,5 +150,5 @@ def test_read_file():
         assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
                                                                                              output)
 
-        assert file_content == output, 'File content and output are not identical\nFile content:\n{}Output:\n{}'.format(
-            file_content, output)
+        assert file_content == output, 'Round {} File content and output are not identical\nFile content:\n{}Output:\n{}'.format(
+            round, file_content, output)
