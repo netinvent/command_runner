@@ -25,8 +25,9 @@ It works as wrapper for subprocess.popen and subprocess.check_output that solves
    - Platform differences
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
+      - Handle timeouts even for windows GUI applications that don't return anything to stdout
       - Handle encoding even on earlier Python implementations
-   - Promises to always return an exit_code regardless of the execution state (even with timeouts, keyboard interruptions)
+   - Promises to always return the exit code and output regardless of the execution state (even with timeouts, keyboard interruptions)
    - Catch all possible exceptions and log them
    - Allows live stdout output of current execution
 
@@ -109,6 +110,11 @@ Feel free to lower / higher that setting with
 ```
 exit_code, command_runner('ping 127.0.0.1', timeout=30)
 ```
+
+Be aware that when running under windows, using shell=True will stop the shell thread but not the child thread.
+Hance shell=True is not compatible with timeouts under windows.
+shell=False can be used for any non cmd integrated command by providing it's full path.
+
 
 #### Disabling logs
 
