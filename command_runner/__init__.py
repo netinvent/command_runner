@@ -101,7 +101,7 @@ def command_runner(
     stdout=None,  # type: Union[int, str]
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
-    windows_no_thread=False,  # type: bool
+    no_threads=False,  # type: bool
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -125,8 +125,8 @@ def command_runner(
     When stdout = filename or stderr = filename, we'll write output to the given file
 
     windows_no_window will disable visible window (MS Windows platform only)
-    windows_no_thread will disable thread polling and will not be able to enforce
-      timeouts on GUI apps (MS Windows platform only)
+    no_thread will disable thread polling and will not be able to enforce
+      timeouts on GUI apps (MS Windows platform only), but will spare a thread of course ;)
 
     Returns a tuple (exit_code, output)
     """
@@ -270,7 +270,7 @@ def command_runner(
 
         # process.stdout.readline() is blocking under windows so we need to setup a thread in order
         # to get it's output
-        if os.name == "nt" and not windows_no_thread:
+        if not no_threads:
             output_queue = queue.Queue()
             read_pipe_thread = threading.Thread(
                 target=_read_pipe,
@@ -281,7 +281,7 @@ def command_runner(
 
         while process.poll() is None:
             try:
-                if os.name == "nt" and not windows_no_thread:
+                if not no_threads:
                     output += output_queue.get(timeout=0.1)
                 else:
                     output += _read_pipe(process, None, encoding, errors, timeout)
@@ -304,13 +304,14 @@ def command_runner(
                 if process.poll() is None:
                     process.kill()
                 timeout_reached = True
-                sleep(0.1)
+
         exit_code = process.poll()
+        sleep(0.1)
 
         # Try to get remaining data in output queue after process is terminated
         try:
-            if os.name == "nt" and not windows_no_thread:
-                output += output_queue.get(timeout=0.1)
+            if not no_threads:
+                output += output_queue.get(timeout=11)
             else:
                 output += _read_pipe(process, None, encoding, errors, timeout)
         except queue.Empty:
@@ -453,5 +454,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-command_runner('notepad.exe', shell=True, timeout=3, windows_no_thread=True)
