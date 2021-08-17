@@ -89,6 +89,7 @@ def command_runner(
     stdout=None,  # type: Union[int, str]
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
+    windows_no_thread=False,  # type: bool
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -110,6 +111,10 @@ def command_runner(
     When no stdout option is given, we'll get output into the returned tuple
     When stdout = PIPE or subprocess.PIPE, output is also displayed on the fly on stdout
     When stdout = filename or stderr = filename, we'll write output to the given file
+
+    windows_no_window will disable visible window (MS Windows platform only)
+    windows_no_thread will disable thread polling and will not be able to enforce
+      timeouts on GUI apps (MS Windows platform only)
 
     Returns a tuple (exit_code, output)
     """
@@ -243,7 +248,7 @@ def command_runner(
 
         # process.stdout.readline() is blocking under windows so we need to setup a thread in order
         # to get it's output
-        if os.name == "nt":
+        if os.name == "nt" and not windows_no_thread:
             output_queue = queue.Queue()
             read_pipe_thread = threading.Thread(
                 target=_read_pipe,
@@ -254,7 +259,7 @@ def command_runner(
 
         while process.poll() is None:
             try:
-                if os.name == "nt":
+                if os.name == "nt" and not windows_no_thread:
                     output += output_queue.get(timeout=0.1)
                 else:
                     output += _read_pipe(process, None, encoding, errors, timeout)
@@ -281,7 +286,7 @@ def command_runner(
 
         # Try to get remaining data in output queue after process is terminated
         try:
-            if os.name == "nt":
+            if os.name == "nt" and not windows_no_thread:
                 output += output_queue.get(timeout=0.1)
             else:
                 output += _read_pipe(process, None, encoding, errors, timeout)
