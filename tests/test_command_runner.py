@@ -134,11 +134,12 @@ def xtest_deferred_command():
 
 def test_read_file():
     """
-    Read a couple of times the same file to be sure we don't get garbage from _read_pipe() when threaded
+    Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
+    This is a random failure detection test
     """
     test_filename = 'README.md'
-    with open(test_filename, 'rb') as file:
-        file_content = file.read().decode('utf-8').replace('\r\n', '\n')
+    with open(test_filename, 'r') as file:
+        file_content = file.read()
 
     for round in range(0, 36):
         print('Comparaison round {}'.format(round))
@@ -150,5 +151,4 @@ def test_read_file():
         assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
                                                                                              output)
 
-        assert file_content == output, 'Round {} File content and output are not identical\nFile content:\n{}Output:\n{}'.format(
-            round, file_content, output)
+        assert file_content == output, 'Round {} File content and output are not identical'.format(round)
