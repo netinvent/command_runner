@@ -434,12 +434,6 @@ def command_runner(
             _stdout.close()
         if stderr_to_file:
             _stderr.close()
-        # Make sure we try to close the pipes if somehow process wasn't killed
-        try:
-            process.stdout.close()
-            process.stderr.close()
-        except AttributeError:
-            pass
 
     logger.debug(output)
 
