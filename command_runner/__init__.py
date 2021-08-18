@@ -218,10 +218,11 @@ def command_runner(
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
                 try:
+                    # Let's try to read all data using communicate, if not ready, read line by line
                     try:
                         pipe_output, pipe_error_output = process.communicate(timeout=1)
                     except TimeoutExpired:
-                        pipe_output, pipe_error_output = '', ''
+                        pipe_output, pipe_error_output = process.stdout.readline(), ''
                 # There is no timeout on Python < 3.3
                 except NameError:
                     pipe_output, pipe_error_output = process.communicate()
