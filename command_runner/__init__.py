@@ -217,11 +217,13 @@ def command_runner(
         try:
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
-                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                    break
-
-                # pipe_output = process.stdout.readline()
-                pipe_output, pipe_error_output = process.communicate()
+                if live_output:
+                    pipe_output = ''
+                    for po in iter(process.stdout.readlines()):
+                        pipe_output += po
+                    pipe_error_output = None
+                else:
+                    pipe_output, pipe_error_output = process.communicate()
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(pipe_output, bytes):
                     try:
@@ -248,6 +250,9 @@ def command_runner(
                     output_queue.put(pipe_error_output)
                 else:
                     return pipe_output + pipe_error_output
+
+                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                    break
 
         # process may not have anymore pipe attributes when process gets killed
         # we may also get ValueError: I/O operation on closed file
@@ -465,3 +470,7 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+#command_runner('ping 127.0.0.1', stdout=PIPE)
+e, o = command_runner('type C:\\GIT\\command_runner\\README.md', shell=True, stdout=PIPE)
+print(o)
