@@ -327,7 +327,7 @@ def command_runner(
         # Try to get remaining data in output queue after process is terminated
         try:
             if not no_threads:
-                output += output_queue.get(timeout=10)
+                output += output_queue.get_nowait()
             else:
                 output += _read_pipe(process, None, encoding, errors, timeout, begin_time)
         except queue.Empty:
