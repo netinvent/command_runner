@@ -249,9 +249,9 @@ def command_runner(
                 else:
                     return pipe_output + pipe_error_output
 
-            process.stdout.close()
         # process may not have anymore pipe attributes when process gets killed
-        except AttributeError:
+        # we may also get ValueError: I/O operation on closed file
+        except (AttributeError, ValueError):
             pass
 
     def _poll_process(
@@ -323,6 +323,9 @@ def command_runner(
         except (ValueError, TypeError):
             # What happens when str cannot be concatenated
             pass
+
+        process.stdout.close()
+        process.stderr.close()
 
         if timeout_reached:
             raise TimeoutExpired(process, timeout, output)
