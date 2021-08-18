@@ -222,7 +222,10 @@ def command_runner(
                     try:
                         pipe_output, pipe_error_output = process.communicate(timeout=1)
                     except TimeoutExpired:
-                        pipe_output, pipe_error_output = process.stdout.readline(), ''
+                        try:
+                            pipe_output, pipe_error_output = process.stdout.readline(), ''
+                        except OSError:
+                            pipe_output, pipe_error_output = '', ''
                 # There is no timeout on Python < 3.3
                 except NameError:
                     pipe_output, pipe_error_output = process.communicate()
