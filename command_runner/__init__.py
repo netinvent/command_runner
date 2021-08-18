@@ -217,14 +217,13 @@ def command_runner(
         try:
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
+
+                #pipe_output = process.stdout.readline()
                 try:
                     # Let's try to read all data using communicate, if not ready, read line by line
                     try:
-                        pipe_output, pipe_error_output = process.communicate(timeout=1)
+                        pipe_output, pipe_error_output = process.communicate(timeout=.1)
                     except TimeoutExpired:
-                        try:
-                            pipe_output, pipe_error_output = process.stdout.readline(), ''
-                        except OSError:
                             pipe_output, pipe_error_output = '', ''
                 # There is no timeout on Python < 3.3
                 except NameError:
@@ -249,13 +248,15 @@ def command_runner(
                     # observed on python 3.5 and pypy 3.7
                     if pipe_output:
                         sys.stdout.write(pipe_output)
-                    if pipe_error_output:
-                        sys.stderr.write(pipe_error_output)
+                    #if pipe_error_output:
+                    #    sys.stderr.write(pipe_error_output)
                 if output_queue:
                     output_queue.put(pipe_output)
-                    output_queue.put(pipe_error_output)
+                    #output_queue.put(pipe_error_output)
                 else:
                     return pipe_output + pipe_error_output
+
+                sleep(.1)
 
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     break
@@ -469,3 +470,8 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+if __name__ == '__main__':
+    exit_code, output = command_runner('ping 127.0.0.1', stdout=PIPE)
+#    print(exit_code)
+    print('output\n{}'.format(output))
