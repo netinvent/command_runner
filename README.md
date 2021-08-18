@@ -52,29 +52,6 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 
 
 
-## UAC Elevation / sudo elevation
-
-command_runner package allowing privilege elevation.
-Becomming an admin is fairly easy with command_runner.elevate
-You only have to import the elevate module, and then launch your main function with the elevate function.
-
-### elevation In a nutshell
-
-```
-from command_runner.elevate import elevate
-
-def main():
-    """My main function that should be elevated"""
-    print("Who's the administrator, now ?")
-
-if __name__ == '__main__':
-    elevate(main)
-```
-
-elevate function handles arguments (positional and keyword arguments).
-`elevate(main, arg, arg2, kw=somearg)` will call `main(arg, arg2, kw=somearg)`
-
-
 ## Guide
 
 ### Setup
@@ -126,7 +103,7 @@ exit_code, output = command_runner('ping 127.0.0.1', stdout=PIPE)
 
 command_runner can redirect stdout and stderr to files.
 
-Example (of course this also works with unix paths:
+Example (of course this also works with unix paths):
 
 ```bash
 exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error'
@@ -159,6 +136,28 @@ import command_runner
 
 logging.getLogger('command_runner').setLevel(logging.ERROR)
 ```
+
+## UAC Elevation / sudo elevation
+
+command_runner package allowing privilege elevation.
+Becomming an admin is fairly easy with command_runner.elevate
+You only have to import the elevate module, and then launch your main function with the elevate function.
+
+### elevation In a nutshell
+
+```
+from command_runner.elevate import elevate
+
+def main():
+    """My main function that should be elevated"""
+    print("Who's the administrator, now ?")
+
+if __name__ == '__main__':
+    elevate(main)
+```
+
+elevate function handles arguments (positional and keyword arguments).
+`elevate(main, arg, arg2, kw=somearg)` will call `main(arg, arg2, kw=somearg)`
 
 ### Advanced elevate usage
 
