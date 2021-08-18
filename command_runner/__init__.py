@@ -324,8 +324,12 @@ def command_runner(
             # What happens when str cannot be concatenated
             pass
 
-        process.stdout.close()
-        process.stderr.close()
+        # Make sure we try to close the pipes if somehow process wasn't killed
+        try:
+            process.stdout.close()
+            process.stderr.close()
+        except AttributeError:
+            pass
 
         if timeout_reached:
             raise TimeoutExpired(process, timeout, output)
