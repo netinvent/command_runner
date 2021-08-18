@@ -217,13 +217,12 @@ def command_runner(
         try:
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
-                if live_output:
-                    pipe_output = ''
-                    for po in iter(process.stdout.readlines()):
-                        pipe_output += po
-                    pipe_error_output = None
-                else:
+                try:
+                    pipe_output, pipe_error_output = process.communicate(timeout=1)
+                # There is no timeout on Python < 3.3
+                except NameError:
                     pipe_output, pipe_error_output = process.communicate()
+
                 # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
                 if isinstance(pipe_output, bytes):
                     try:
