@@ -218,7 +218,10 @@ def command_runner(
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
                 try:
-                    pipe_output, pipe_error_output = process.communicate(timeout=1)
+                    try:
+                        pipe_output, pipe_error_output = process.communicate(timeout=1)
+                    except TimeoutExpired:
+                        pipe_output, pipe_error_output = '', ''
                 # There is no timeout on Python < 3.3
                 except NameError:
                     pipe_output, pipe_error_output = process.communicate()
