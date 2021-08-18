@@ -470,7 +470,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-#command_runner('ping 127.0.0.1', stdout=PIPE)
-e, o = command_runner('type C:\\GIT\\command_runner\\README.md', shell=True, stdout=PIPE)
-print(o)
