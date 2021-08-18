@@ -217,44 +217,37 @@ def command_runner(
         try:
             # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
             while True:
-                output = ''
-                for pipe_output in process.stdout.readline():
-
-                    # pipe_output, pipe_error_output = process.communicate()
-                    # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                    if isinstance(pipe_output, bytes):
-                        try:
-                            pipe_output = pipe_output.decode(encoding, errors=errors)
-                        except TypeError:
-                            # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                            pipe_output = pipe_output.decode(encoding, errors="ignore")
-                    """
-                    if isinstance(pipe_error_output, bytes):
-                        try:
-                            pipe_error_output = pipe_error_output.decode(encoding, errors=errors)
-                        except TypeError:
-                            # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                            pipe_error_output = pipe_error_output.decode(encoding, errors="ignore")
-                    """
-                    if live_output:
-                        # sys.stdxxx.write may fail with TypeError when argument is None
-                        # observed on python 3.5 and pypy 3.7
-                        if pipe_output:
-                            sys.stdout.write(pipe_output)
-                        # if pipe_error_output:
-                        #    sys.stderr.write(pipe_error_output)
-                    if output_queue:
-                        output_queue.put(pipe_output)
-                        # output_queue.put(pipe_error_output)
-                    else:
-                        output += pipe_output
-                if not output_queue:
-                    return pipe_output
-                    # return pipe_output + pipe_error_output
-
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     break
 
+                # pipe_output = process.stdout.readline()
+                pipe_output, pipe_error_output = process.communicate()
+                # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+                if isinstance(pipe_output, bytes):
+                    try:
+                        pipe_output = pipe_output.decode(encoding, errors=errors)
+                    except TypeError:
+                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                        pipe_output = pipe_output.decode(encoding, errors="ignore")
+
+                if isinstance(pipe_error_output, bytes):
+                    try:
+                        pipe_error_output = pipe_error_output.decode(encoding, errors=errors)
+                    except TypeError:
+                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                        pipe_error_output = pipe_error_output.decode(encoding, errors="ignore")
+                if live_output:
+                    # sys.stdxxx.write may fail with TypeError when argument is None
+                    # observed on python 3.5 and pypy 3.7
+                    if pipe_output:
+                        sys.stdout.write(pipe_output)
+                    if pipe_error_output:
+                        sys.stderr.write(pipe_error_output)
+                if output_queue:
+                    output_queue.put(pipe_output)
+                    output_queue.put(pipe_error_output)
+                else:
+                    return pipe_output + pipe_error_output
 
         # process may not have anymore pipe attributes when process gets killed
         # we may also get ValueError: I/O operation on closed file
