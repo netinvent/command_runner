@@ -21,15 +21,18 @@ It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality
 
 ## command_runner
 
-The main promise command_runner can do is to make sure to never have a blocking command, with timeout usage.
+command_runner is a replacement package for subprocess.popen and subprocess.check_output
+The main promise command_runner can do is to make sure to never have a blocking command, and always get results.
 
 It works as wrapper for subprocess.popen and subprocess.check_output that solves:
    - Platform differences
-    - Handle timeouts even for windows GUI applications that don't return anything to stdout
+      - Handle timeouts even for windows GUI applications that don't return anything to stdout
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
       - Handle encoding even on earlier Python implementations
-   - Promises to always return the exit code and output regardless of the execution state (even with timeouts, keyboard interruptions)
+   - Promises to always return an exit code
+   - Promises to always return the command output regardless of the execution state (even with timeouts and keyboard interrupts)
+   - Can show command_output on the fly without waiting the end of execution (with stdout=command_runner.PIPE argument)
    - Catch all possible exceptions and log them
    - Allows live stdout output of current execution
 
@@ -104,11 +107,36 @@ exit_code, output = command_runner(r'C:\Windows\sysnative\WindowsPowerShell\v1.0
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
 
+#### On the fly (interactive) output
+
+command_runner can output a command output on the fly to stdout, eg show output during execution.
+This is helpful when the command is long, and we need to know the output while execution is ongoing.
+
+Example:
+
+```
+from command_runner import command_runner, PIPE
+
+exit_code, output = command_runner('ping 127.0.0.1', stdout=PIPE)
+```
+
+**WARNING** Live output should be used for debugging purposes only, since it may not read all output from the process.
+
+#### To file redirection
+
+command_runner can redirect stdout and stderr to files.
+
+Example (of course this also works with unix paths:
+
+```bash
+exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error'
+```
+
 #### Timeouts
 
-command_runner as a `timeout` argument which defaults to 1800 seconds.
+**command_runner as a `timeout` argument which defaults to 3600 seconds.**
 This default setting ensures commands will not block the main script execution.
-Feel free to lower / higher that setting with
+Feel free to lower / higher that setting with `timeout` argument
 
 ```
 exit_code, command_runner('ping 127.0.0.1', timeout=30)
