@@ -348,7 +348,7 @@ def command_runner(
         try:
             exit_code, output = _poll_process(process, timeout, encoding, errors)
         except KbdInterruptGetOutput as exc:
-            exit_code = -252
+            exit_code = -250
             output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
                 if os.name == "nt":
@@ -384,7 +384,7 @@ def command_runner(
         logger.error(output)
     except FileNotFoundError as exc:
         logger.error('Command "{}" failed, file not found: {}'.format(command, exc))
-        exit_code, output = -253, exc.__str__()
+        exit_code, output = -252, exc.__str__()
     # OSError can also catch FileNotFoundErrors
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
