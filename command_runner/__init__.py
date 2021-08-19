@@ -27,7 +27,6 @@ import subprocess
 import sys
 from datetime import datetime
 from logging import getLogger
-from time import sleep
 
 # Python 2.7 compat fixes (queue was Queue)
 try:
@@ -35,7 +34,6 @@ try:
 except ImportError:
     import Queue as queue
 import threading
-
 
 # Python 2.7 compat fixes (missing typing and FileNotFoundError)
 try:
@@ -213,14 +211,10 @@ def command_runner(
             except TypeError:
                 try:
                     # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                    process_output = process_output.decode(
-                        encoding, errors="ignore"
-                    )
+                    process_output = process_output.decode(encoding, errors="ignore")
                 except (ValueError, TypeError):
                     # What happens when str cannot be concatenated
-                    logger.debug(
-                        "Output cannot be captured {}".format(process_output)
-                    )
+                    logger.debug("Output cannot be captured {}".format(process_output))
         return process_output
 
     def _read_pipe(
@@ -448,8 +442,8 @@ def deferred_command(command, defer_time=300):
     )
 
 
-if __name__ == '__main__':
-    cmd = 'ping 127.0.0.1'
-    e, o = command_runner(cmd, encoding='cp437', live_output=True)
+if __name__ == "__main__":
+    cmd = "ping 127.0.0.1"
+    e, o = command_runner(cmd, encoding="cp437", live_output=True)
     print(e)
     print(o)
