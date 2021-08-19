@@ -22,6 +22,7 @@ __version__ = "1.0.0-dev"
 __build__ = "2021081901"
 
 import os
+import io
 import shlex
 import subprocess
 import sys
@@ -217,7 +218,7 @@ def command_runner(
                     logger.debug("Output cannot be captured {}".format(process_output))
         return process_output
 
-    def _read_pipe(
+    def old_read_pipe(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         output_queue,  # type: Optional[queue.Queue]
     ):
@@ -235,7 +236,7 @@ def command_runner(
         except (AttributeError, NameError):
             pass
 
-    def _poll_process(
+    def old_poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
         encoding,  # type: str
@@ -298,6 +299,99 @@ def command_runner(
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
+
+    def _read_pipe(
+        stream,  # type: io.BinaryIO
+        output_queue,  # type: Optional[queue.Queue]
+    ):
+        # type: (...) -> None
+        """
+        will read from subprocess.PIPE
+        Must be threaded since readline() might be blocking on Windows GUI apps
+        """
+        int_queue = queue.Queue()
+
+        def rdr():
+            while True:
+                buf = stream.read1(8192)
+                if len(buf) > 0:
+                    int_queue.put(buf)
+                else:
+                    int_queue.put(None)
+                    return
+
+        def clct():
+            active = True
+            while active:
+                r = int_queue.get()
+                try:
+                    while True:
+                        r1 = int_queue.get(timeout=0.005)
+                        if r1 is None:
+                            active = False
+                            break
+                        else:
+                            r += r1
+                except queue.Empty:
+                    pass
+                output_queue.put(r)
+
+        for tgt in [rdr, clct]:
+            th = threading.Thread(target=tgt)
+            th.setDaemon(True)
+            th.start()
+
+
+    def _poll_process(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        timeout,  # type: int
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # type: (...) -> Tuple[Optional[int], str]
+        """
+        Reads from process output pipe until:
+        - Timeout is reached, in which case we'll terminate the process
+        - Process ends by itself
+
+        Returns an encoded string of the pipe output
+        """
+
+        begin_time = datetime.now()
+
+        output = ""
+        output_queue = queue.Queue()
+        stdout = io.open(process.stdout.fileno(), 'rb', closefd=False)
+
+        _read_pipe(stdout, output_queue)
+
+        try:
+            while process.poll() is None:
+                # App still working
+                try:
+                    stream_output = output_queue.get(timeout=1.0)
+                    stream_output = to_encoding(stream_output, 'utf-8', 'backslashreplace')
+                    output += stream_output
+                    if stream_output and live_output:
+                        sys.stdout.write(stream_output)
+
+
+                    if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                        # Try to terminate nicely before killing the process
+                        if os.name == "nt":
+                            _windows_child_kill(process.pid)
+                        process.terminate()
+                        # Let the process terminate itself before trying to kill it not nicely
+                        # Under windows, terminate() and kill() are equivalent
+                        if process.poll() is None:
+                            process.kill()
+                        raise TimeoutExpired(process, timeout, stream_output)
+
+                except queue.Empty:
+                    pass
+            return process.poll(), output
+        except KeyboardInterrupt:
+            raise KbdInterruptGetOutput(stream_output)
 
     try:
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
@@ -435,3 +529,10 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+"""
+cmd = 'type c:\\GIT\\command_runner\\README.md'
+cmd = 'ping 127.0.0.1'
+e, o = command_runner(cmd, shell=True, live_output=True, encoding='ansi')
+print(e)
+print(o)
+"""
