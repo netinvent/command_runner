@@ -69,7 +69,7 @@ Those exit codes are:
 
 - -250 : KeyboardInterrupt
 - -252 : FileNotFoundError
-- -253 : OSError, IOError
+- -253 : OSError, IOError (and FileNotFoundError on Python 2.7)
 - -254 : Timeout
 - -255 : Any other uncatched exceptions
 
