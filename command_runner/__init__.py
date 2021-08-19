@@ -254,7 +254,6 @@ def command_runner(
         process_output = ""
 
         begin_time = datetime.now()
-        timeout_reached = False
 
         # process.stdout.readline() is blocking so we need to setup a thread in order
         # to get it's output via an infinite size queue
@@ -284,10 +283,6 @@ def command_runner(
                     if pipe_output and live_output:
                         sys.stdout.write(pipe_output)
 
-                # Make sure we raise TimeoutExpired after another round of queue reading
-                if timeout_reached:
-                    raise TimeoutExpired(process, timeout, process_output)
-
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
                     if os.name == "nt":
@@ -297,7 +292,7 @@ def command_runner(
                     # Under windows, terminate() and kill() are equivalent
                     if process.poll() is None:
                         process.kill()
-                    timeout_reached = True
+                    raise TimeoutExpired(process, timeout, process_output)
 
             exit_code = process.poll()
             return exit_code, process_output
@@ -391,7 +386,7 @@ def command_runner(
         logger.error(message)
         if stdout_to_file:
             _stdout.write(message.encode(encoding, errors=errors))
-        (exit_code, output,) = (
+        exit_code, output = (
             -254,
             'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
                 timeout, command, exc.output
@@ -440,10 +435,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-
-if __name__ == "__main__":
-    cmd = "ping 127.0.0.1"
-    e, o = command_runner(cmd, encoding="cp437", live_output=True)
-    print(e)
-    print(o)
