@@ -256,6 +256,7 @@ def command_runner(
         Returns an encoded string of the pipe output
         """
 
+        process_finished = False
         process_output = ""
 
         begin_time = datetime.now()
@@ -274,29 +275,24 @@ def command_runner(
         try:
             while True:
                 try:
-                    pipe_output = output_queue.get_nowait()
+                    if process.poll() is None:
+                        pipe_output = output_queue.get_nowait()
+                    else:
+                        # queue may take some time to fill even after polled process is done
+                        # Add an arbitrary 1s timeout to finish reading the queue
+                        process_finished = True
+                        pipe_output = output_queue.get(timeout=1)
                 except queue.Empty:
-                    pass
+                    if process_finished:
+                        break
                 else:
-                    process_output += pipe_output
+                    process_output += to_encoding(pipe_output, encoding, errors)
                     if pipe_output and live_output:
                         sys.stdout.write(pipe_output)
 
                 # Make sure we raise TimeoutExpired after another round of queue reading
                 if timeout_reached:
                     raise TimeoutExpired(process, timeout, process_output)
-
-                if process.poll() is not None:
-                    try:
-                        # queue may take some time to fill even after polled process is done
-                        # Add an arbitrary 1s timeout to finish reading the queue
-                        pipe_output = output_queue.get(timeout=1)
-                    except queue.Empty:
-                        break
-                    else:
-                        process_output += pipe_output
-                        if pipe_output and live_output:
-                            sys.stdout.write(pipe_output)
 
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
@@ -351,10 +347,9 @@ def command_runner(
 
         try:
             exit_code, output = _poll_process(process, timeout, encoding, errors)
-            output = to_encoding(output, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
-            output = "KeyboardInterrupted. Partial output\n{}".format(to_encoding(exc.output, encoding, errors))
+            output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
                 if os.name == "nt":
                     _windows_child_kill(process.pid)
@@ -397,7 +392,7 @@ def command_runner(
         exit_code, output = -253, exc.__str__()
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
-            timeout, command, to_encoding(exc.output, encoding, errors)
+            timeout, command, exc.output
         )
         logger.error(message)
         if stdout_to_file:
@@ -405,7 +400,7 @@ def command_runner(
         (exit_code, output,) = (
             -254,
             'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
-                timeout, command, to_encoding(exc.output, encoding, errors)
+                timeout, command, exc.output
             ),
         )
     # We need to be able to catch a broad exception
@@ -429,7 +424,7 @@ def command_runner(
 
 
 def deferred_command(command, defer_time=300):
-    # type: (str, int) -> NoReturn
+    # type: (str, int) -> None
     """
     This is basically an ugly hack to launch commands which are detached from parent process
     Especially useful to launch an auto update/deletion of a running executable after a given amount of
@@ -451,3 +446,10 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+
+if __name__ == '__main__':
+    cmd = 'ping 127.0.0.1'
+    e, o = command_runner(cmd, encoding='cp437', live_output=True)
+    print(e)
+    print(o)
