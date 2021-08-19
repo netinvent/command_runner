@@ -74,7 +74,7 @@ def test_not_found():
     """
     print('The following command should fail')
     exit_code, _ = command_runner('unknown_command_nowhere_to_be_found_1234')
-    assert exit_code == -252, 'Unknown command should trigger a -252 exit code'
+    assert exit_code == -253, 'Unknown command should trigger a -253 exit code'
 
 
 def test_file_output():
