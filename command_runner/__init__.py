@@ -18,8 +18,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "0.8.0-dev"
-__build__ = "2021081701"
+__version__ = "1.0.0-dev"
+__build__ = "2021081901"
 
 import os
 import shlex
@@ -80,6 +80,7 @@ class KbdInterruptGetOutput(BaseException):
     """
     Make sure we get the current output when KeyboardInterrupt is made
     """
+
     def __init__(self, output):
         self._output = output
 
@@ -101,7 +102,7 @@ def command_runner(
     stdout=None,  # type: Union[int, str]
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
-    no_threads=False,  # type: bool
+    live_output=False,  # type: bool
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -125,8 +126,6 @@ def command_runner(
     When stdout = filename or stderr = filename, we'll write output to the given file
 
     windows_no_window will disable visible window (MS Windows platform only)
-    no_thread will disable thread polling and will not be able to enforce
-      timeouts on GUI apps (MS Windows platform only), but will spare a thread of course ;)
 
     Returns a tuple (exit_code, output)
     """
@@ -158,23 +157,21 @@ def command_runner(
         # triggers an error on Unix
         # pylint: disable=E1101
         creationflags = creationflags | subprocess.CREATE_NO_WINDOW
+    close_fds = kwargs.pop("close_fds", "posix" in sys.builtin_module_names)
 
     # Decide whether we write to output variable only (stdout=None), to output variable and stdout (stdout=PIPE)
     # or to output variable and to file (stdout='path/to/file')
     if stdout is None:
         _stdout = subprocess.PIPE
         stdout_to_file = False
-        live_output = False
     elif isinstance(stdout, str):
         # We will send anything to file
         _stdout = open(stdout, "wb")
         stdout_to_file = True
-        live_output = False
     else:
         # We will send anything to given stdout pipe
         _stdout = stdout
         stdout_to_file = False
-        live_output = True
 
     # The only situation where we don't add stderr to stdout is if a specific target file was given
     if isinstance(stderr, str):
@@ -203,68 +200,17 @@ def command_runner(
     def _read_pipe(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         output_queue,  # type: Optional[queue.Queue]
-        encoding,  # type: str
-        errors,  # type: str
-        timeout,  # type: int
-        begin_time,  # type: datetime.timestamp
     ):
-        # type: (...) -> Optional[str]
+        # type: (...) -> None
         """
         will read from subprocess.PIPE
-        Might be threaded on windows since readline() might be blocking on GUI apps
+        Must be threaded since readline() might be blocking on Windows GUI apps
         """
 
-        try:
-            # make sure we enforce timeout if process is not killable so the thread gets stopped no matter what
-            while True:
-
-                #pipe_output = process.stdout.readline()
-                try:
-                    # Let's try to read all data using communicate, if not ready, read line by line
-                    try:
-                        pipe_output, pipe_error_output = process.communicate(timeout=.1)
-                    except TimeoutExpired:
-                            pipe_output, pipe_error_output = '', ''
-                # There is no timeout on Python < 3.3
-                except NameError:
-                    pipe_output, pipe_error_output = process.communicate()
-
-                # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                if isinstance(pipe_output, bytes):
-                    try:
-                        pipe_output = pipe_output.decode(encoding, errors=errors)
-                    except TypeError:
-                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                        pipe_output = pipe_output.decode(encoding, errors="ignore")
-
-                if isinstance(pipe_error_output, bytes):
-                    try:
-                        pipe_error_output = pipe_error_output.decode(encoding, errors=errors)
-                    except TypeError:
-                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                        pipe_error_output = pipe_error_output.decode(encoding, errors="ignore")
-                if live_output:
-                    # sys.stdxxx.write may fail with TypeError when argument is None
-                    # observed on python 3.5 and pypy 3.7
-                    if pipe_output:
-                        sys.stdout.write(pipe_output)
-                    #if pipe_error_output:
-                    #    sys.stderr.write(pipe_error_output)
-                if output_queue:
-                    output_queue.put(pipe_output)
-                    #output_queue.put(pipe_error_output)
-                else:
-                    return pipe_output + pipe_error_output
-
-                sleep(.1)
-
-                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                    break
-
-        # process may not have anymore pipe attributes when process gets killed
-        # we may also get ValueError: I/O operation on closed file
-        except (AttributeError, ValueError):
-            pass
+        for line in iter(process.stdout.readline, b""):
+            if line:
+                output_queue.put(line)
+        output_queue.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -280,65 +226,97 @@ def command_runner(
 
         Returns an encoded string of the pipe output
         """
-        output = ""
+
+        process_output = ""
+
         begin_time = datetime.now()
         timeout_reached = False
 
-        # process.stdout.readline() is blocking under windows so we need to setup a thread in order
+        # process.stdout.readline() is blocking so we need to setup a thread in order
         # to get it's output
-        if not no_threads:
-            output_queue = queue.Queue()
-            read_pipe_thread = threading.Thread(
-                target=_read_pipe,
-                args=(process, output_queue, encoding, errors, timeout, begin_time),
-            )
-            read_pipe_thread.daemon = True
-            read_pipe_thread.start()
+        output_queue = queue.Queue()
+        read_pipe_thread = threading.Thread(
+            target=_read_pipe,
+            args=(process, output_queue),
+        )
+        read_pipe_thread.daemon = True
+        read_pipe_thread.start()
 
-        while process.poll() is None:
-            try:
-                if not no_threads:
-                    output += output_queue.get(timeout=0.1)
-                else:
-                    output += _read_pipe(process, None, encoding, errors, timeout, begin_time)
-            except queue.Empty:
-                pass
-            except (ValueError, TypeError):
-                # What happens when str cannot be concatenated
-                pass
-            except KeyboardInterrupt:
-                raise KbdInterruptGetOutput(output)
-
-            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                # Try to terminate nicely before killing the process
-                if os.name == "nt":
-                    _windows_child_kill(process.pid)
-                process.terminate()
-                # Let the process terminate itself before trying to kill it not nicely
-                # Under windows, terminate() and kill() are equivalent
-                sleep(0.5)
-                if process.poll() is None:
-                    process.kill()
-                timeout_reached = True
-
-        exit_code = process.poll()
-        sleep(0.1)
-
-        # Try to get remaining data in output queue after process is terminated
         try:
-            if not no_threads:
-                output += output_queue.get_nowait()
-            else:
-                output += _read_pipe(process, None, encoding, errors, timeout, begin_time)
-        except queue.Empty:
-            pass
-        except (ValueError, TypeError):
-            # What happens when str cannot be concatenated
-            pass
+            while True:
+                try:
+                    pipe_output = output_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                else:
+                    if pipe_output and live_output:
+                        sys.stdout.write(pipe_output)
 
-        if timeout_reached:
-            raise TimeoutExpired(process, timeout, output)
-        return exit_code, output
+                    # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+                    if isinstance(pipe_output, bytes):
+                        try:
+                            pipe_output += pipe_output.decode(encoding, errors=errors)
+                        except TypeError:
+                            try:
+                                # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                                pipe_output += pipe_output.decode(
+                                    encoding, errors="ignore"
+                                )
+                            except (ValueError, TypeError):
+                                # What happens when str cannot be concatenated
+                                logger.debug(
+                                    "Output cannot be captured {}".format(pipe_output)
+                                )
+                    process_output += pipe_output
+
+                if timeout_reached:
+                    raise TimeoutExpired(process, timeout, process_output)
+
+                if process.poll() is not None:
+                    try:
+                        pipe_output = output_queue.get(timeout=1)
+                    except queue.Empty:
+                        break
+                    else:
+                        if pipe_output and live_output:
+                            sys.stdout.write(pipe_output)
+
+                        # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+                        if isinstance(pipe_output, bytes):
+                            try:
+                                pipe_output += pipe_output.decode(
+                                    encoding, errors=errors
+                                )
+                            except TypeError:
+                                try:
+                                    # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                                    pipe_output += pipe_output.decode(
+                                        encoding, errors="ignore"
+                                    )
+                                except (ValueError, TypeError):
+                                    # What happens when str cannot be concatenated
+                                    logger.debug(
+                                        "Output cannot be captured {}".format(
+                                            pipe_output
+                                        )
+                                    )
+                        process_output += pipe_output
+
+                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                    # Try to terminate nicely before killing the process
+                    if os.name == "nt":
+                        _windows_child_kill(process.pid)
+                    process.terminate()
+                    # Let the process terminate itself before trying to kill it not nicely
+                    # Under windows, terminate() and kill() are equivalent
+                    if process.poll() is None:
+                        process.kill()
+                    timeout_reached = True
+
+            exit_code = process.poll()
+            return exit_code, process_output
+        except KeyboardInterrupt:
+            raise KbdInterruptGetOutput(process_output)
 
     try:
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
@@ -358,6 +336,8 @@ def command_runner(
                 encoding=encoding,
                 errors=errors,
                 creationflags=creationflags,
+                bufsize=1,
+                close_fds=close_fds,
                 **kwargs
             )
         else:
@@ -368,6 +348,8 @@ def command_runner(
                 shell=shell,
                 universal_newlines=universal_newlines,
                 creationflags=creationflags,
+                bufsize=1,
+                close_fds=close_fds,
                 **kwargs
             )
 
@@ -377,7 +359,7 @@ def command_runner(
             exit_code = -252
             output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
-                if os.name == 'nt':
+                if os.name == "nt":
                     _windows_child_kill(process.pid)
                 process.kill()
             except AttributeError:
@@ -470,8 +452,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-if __name__ == '__main__':
-    exit_code, output = command_runner('ping 127.0.0.1', stdout=PIPE)
-#    print(exit_code)
-    print('output\n{}'.format(output))
