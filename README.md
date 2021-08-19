@@ -67,9 +67,8 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 In order to keep the promise to always provide an exit_code, some arbitrary exit codes have been added for the case where none is given.
 Those exit codes are:
 
-- -250 : KeyboardInterrupt
-- -252 : FileNotFoundError
-- -253 : OSError, IOError (and FileNotFoundError on Python 2.7)
+- -252 : KeyboardInterrupt
+- -253 : FileNotFoundError, OSError, IOError
 - -254 : Timeout
 - -255 : Any other uncatched exceptions
 

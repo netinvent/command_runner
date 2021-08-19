@@ -73,12 +73,8 @@ def test_not_found():
     Test command_runner with an unexisting command
     """
     print('The following command should fail')
-    if sys.version_info >= (2, 7):
-        expected_code = -253
-    else:
-        expected_code = -252
     exit_code, _ = command_runner('unknown_command_nowhere_to_be_found_1234')
-    assert exit_code == expected_code, 'Unknown command should trigger a {} exit code'.format(expected_code)
+    assert exit_code == -252, 'Unknown command should trigger a -252 exit code'
 
 
 def test_file_output():
