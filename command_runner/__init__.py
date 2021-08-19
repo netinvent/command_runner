@@ -96,7 +96,7 @@ PIPE = subprocess.PIPE
 def command_runner(
     command,  # type: Union[str, List[str]]
     valid_exit_codes=None,  # type: Optional[List[int]]
-    timeout=1800,  # type: Optional[int]
+    timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
     encoding=None,  # type: str
     stdout=None,  # type: Union[int, str]
@@ -210,7 +210,7 @@ def command_runner(
         for line in iter(process.stdout.readline, b""):
             if line:
                 output_queue.put(line)
-        output_queue.close()
+        process.stdout.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
