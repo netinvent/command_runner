@@ -18,8 +18,9 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2021081701'
+__build__ = '2021081901'
 
+from time import sleep
 from command_runner import *
 
 if os.name == 'nt':
@@ -73,7 +74,7 @@ def test_not_found():
     """
     print('The following command should fail')
     exit_code, _ = command_runner('unknown_command_nowhere_to_be_found_1234')
-    assert exit_code == -253, 'Unknown command should trigger a -253 exit code'
+    assert exit_code == -252, 'Unknown command should trigger a -252 exit code'
 
 
 def test_file_output():
