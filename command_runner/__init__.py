@@ -197,6 +197,32 @@ def command_runner(
             stderr=dev_null,
         )
 
+    def to_encoding(
+        process_output,  # type: Union[str, bytes]
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # type: (...) -> str
+        """
+        Convert bytes output to string
+        """
+        # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+        if isinstance(process_output, bytes):
+            try:
+                process_output = process_output.decode(encoding, errors=errors)
+            except TypeError:
+                try:
+                    # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                    process_output = process_output.decode(
+                        encoding, errors="ignore"
+                    )
+                except (ValueError, TypeError):
+                    # What happens when str cannot be concatenated
+                    logger.debug(
+                        "Output cannot be captured {}".format(process_output)
+                    )
+        return process_output
+
     def _read_pipe(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         output_queue,  # type: Optional[queue.Queue]
@@ -236,8 +262,8 @@ def command_runner(
         timeout_reached = False
 
         # process.stdout.readline() is blocking so we need to setup a thread in order
-        # to get it's output
-        output_queue = queue.Queue()
+        # to get it's output via an infinite size queue
+        output_queue = queue.Queue(maxsize=0)
         read_pipe_thread = threading.Thread(
             target=_read_pipe,
             args=(process, output_queue),
@@ -252,58 +278,25 @@ def command_runner(
                 except queue.Empty:
                     pass
                 else:
+                    process_output += pipe_output
                     if pipe_output and live_output:
                         sys.stdout.write(pipe_output)
 
-                    # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                    if isinstance(pipe_output, bytes):
-                        try:
-                            pipe_output += pipe_output.decode(encoding, errors=errors)
-                        except TypeError:
-                            try:
-                                # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                                pipe_output += pipe_output.decode(
-                                    encoding, errors="ignore"
-                                )
-                            except (ValueError, TypeError):
-                                # What happens when str cannot be concatenated
-                                logger.debug(
-                                    "Output cannot be captured {}".format(pipe_output)
-                                )
-                    process_output += str(pipe_output)
-
+                # Make sure we raise TimeoutExpired after another round of queue reading
                 if timeout_reached:
                     raise TimeoutExpired(process, timeout, process_output)
 
                 if process.poll() is not None:
                     try:
+                        # queue may take some time to fill even after polled process is done
+                        # Add an arbitrary 1s timeout to finish reading the queue
                         pipe_output = output_queue.get(timeout=1)
                     except queue.Empty:
                         break
                     else:
+                        process_output += pipe_output
                         if pipe_output and live_output:
                             sys.stdout.write(pipe_output)
-
-                        # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                        if isinstance(pipe_output, bytes):
-                            try:
-                                pipe_output += pipe_output.decode(
-                                    encoding, errors=errors
-                                )
-                            except TypeError:
-                                try:
-                                    # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                                    pipe_output += pipe_output.decode(
-                                        encoding, errors="ignore"
-                                    )
-                                except (ValueError, TypeError):
-                                    # What happens when str cannot be concatenated
-                                    logger.debug(
-                                        "Output cannot be captured {}".format(
-                                            pipe_output
-                                        )
-                                    )
-                        process_output += str(pipe_output)
 
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
@@ -339,7 +332,7 @@ def command_runner(
                 encoding=encoding,
                 errors=errors,
                 creationflags=creationflags,
-                bufsize=1,
+                bufsize=1,  # 1 = line buffered
                 close_fds=close_fds,
                 **kwargs
             )
@@ -358,15 +351,18 @@ def command_runner(
 
         try:
             exit_code, output = _poll_process(process, timeout, encoding, errors)
+            output = to_encoding(output, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
-            output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
+            output = "KeyboardInterrupted. Partial output\n{}".format(to_encoding(exc.output, encoding, errors))
             try:
                 if os.name == "nt":
                     _windows_child_kill(process.pid)
                 process.kill()
             except AttributeError:
                 pass
+            if stdout_to_file:
+                _stdout.write(output.encode(encoding, errors=errors))
 
         logger.debug(
             'Command "{}" returned with exit code "{}". Command output was:'.format(
@@ -401,7 +397,7 @@ def command_runner(
         exit_code, output = -253, exc.__str__()
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
-            timeout, command, exc.output
+            timeout, command, to_encoding(exc.output, encoding, errors)
         )
         logger.error(message)
         if stdout_to_file:
@@ -409,7 +405,7 @@ def command_runner(
         (exit_code, output,) = (
             -254,
             'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
-                timeout, command, exc.output
+                timeout, command, to_encoding(exc.output, encoding, errors)
             ),
         )
     # We need to be able to catch a broad exception
