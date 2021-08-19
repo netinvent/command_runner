@@ -207,10 +207,13 @@ def command_runner(
         Must be threaded since readline() might be blocking on Windows GUI apps
         """
 
-        for line in iter(process.stdout.readline, b""):
-            if line:
-                output_queue.put(line)
-        process.stdout.close()
+        try:
+            for line in iter(process.stdout.readline, b""):
+                if line:
+                    output_queue.put(line)
+            process.stdout.close()
+        except (AttributeError, NameError):
+            pass
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
