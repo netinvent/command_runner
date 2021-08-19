@@ -270,7 +270,7 @@ def command_runner(
                                 logger.debug(
                                     "Output cannot be captured {}".format(pipe_output)
                                 )
-                    process_output += pipe_output
+                    process_output += str(pipe_output)
 
                 if timeout_reached:
                     raise TimeoutExpired(process, timeout, process_output)
@@ -303,7 +303,7 @@ def command_runner(
                                             pipe_output
                                         )
                                     )
-                        process_output += pipe_output
+                        process_output += str(pipe_output)
 
                 if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     # Try to terminate nicely before killing the process
