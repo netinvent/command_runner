@@ -539,9 +539,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-cmd = 'test'
-for i in range(0,100):
-    print(i)
-    command_runner(cmd, shell=True)
-sleep(100)
