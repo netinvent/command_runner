@@ -343,11 +343,12 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 timeout_dict["is_timeout"] = True
+                kill(process)
                 break
-            if process.poll is not None:
+            if process.poll() is not None:
                 break
-            sleep(0.1)
-        kill(process)
+            sleep(.1)
+
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
