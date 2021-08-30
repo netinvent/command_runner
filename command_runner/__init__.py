@@ -277,7 +277,7 @@ def command_runner(
 
         for function in [stream_reader, queue_transfer]:
             thread = threading.Thread(target=function)
-            thread.setDaemon(False)
+            thread.setDaemon(True)
             thread.start()
 
     def _poll_process(
@@ -369,7 +369,7 @@ def command_runner(
             target=_timeout_check,
             args=(process, timeout, timeout_dict),
         )
-        thread.setDaemon(False)
+        thread.setDaemon(True)
         thread.start()
 
         process_output = None
