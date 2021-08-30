@@ -142,7 +142,7 @@ def test_read_file():
     with open(test_filename, 'r') as file:
         file_content = file.read()
 
-    for round in range(0, 36):
+    for round in range(0, 250):
         print('Comparaison round {}'.format(round))
         if os.name == 'nt':
             exit_code, output = command_runner('type {}'.format(test_filename), shell=True)
