@@ -398,13 +398,13 @@ def command_runner(
 
                     if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                         kill(process)
-                        raise TimeoutExpired(process, timeout, stream_output)
+                        raise TimeoutExpired(process, timeout, output)
 
                 except queue.Empty:
                     pass
             return process.poll(), output
         except KeyboardInterrupt:
-            raise KbdInterruptGetOutput(stream_output)
+            raise KbdInterruptGetOutput(output)
 
     def _timeout_check(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -412,6 +412,10 @@ def command_runner(
         mutable_obj,  # type: dict
     ):
         # type: (...) -> None
+
+        """
+        Since elder python versions don't have timeout, we need to manually check the timeout for a process
+        """
 
         begin_time = datetime.now()
 
@@ -451,14 +455,15 @@ def command_runner(
             while process.poll() is None:
                 sleep(.1)
                 try:
-                    stdout, _ = process.communicate(timeout=1)
-                except TimeoutExpired:
+                    stdout, _ = process.communicate()
+                # ValueError is raised on closed IO file
+                except (TimeoutExpired, ValueError):
                     pass
 
             exit_code = process.poll()
             try:
-                stdout, _ = process.communicate(timeout=1)
-            except TimeoutExpired:
+                stdout, _ = process.communicate()
+            except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
 
@@ -608,3 +613,8 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+cmd = 'ping 127.0.0.1'
+e, o = command_runner(cmd, shell=True)
+print(e)
+print(o)
