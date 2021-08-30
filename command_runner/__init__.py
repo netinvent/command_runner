@@ -26,6 +26,7 @@ import io
 import shlex
 import subprocess
 import sys
+from time import sleep
 from datetime import datetime
 from logging import getLogger
 
@@ -161,7 +162,7 @@ def command_runner(
     # Decide whether we write to output variable only (stdout=None), to output variable and stdout (stdout=PIPE)
     # or to output variable and to file (stdout='path/to/file')
     if stdout is None:
-        _stdout = subprocess.PIPE
+        _stdout = PIPE
         stdout_to_file = False
     elif isinstance(stdout, str):
         # We will send anything to file
@@ -209,11 +210,14 @@ def command_runner(
         if isinstance(process_output, bytes):
             try:
                 process_output = process_output.decode(encoding, errors=errors)
+                pass
             except TypeError:
+                print('nok')
                 try:
                     # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
                     process_output = process_output.decode(encoding, errors="ignore")
                 except (ValueError, TypeError):
+                    print('nik')
                     # What happens when str cannot be concatenated
                     logger.debug("Output cannot be captured {}".format(process_output))
         return process_output
@@ -300,6 +304,19 @@ def command_runner(
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
 
+    def kill(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        stream_output=None  # type: Optional[str]
+    ):
+        # Try to terminate nicely before killing the process
+        if os.name == 'nt':
+            _windows_child_kill(process.pid)
+        process.terminate()
+        # Let the process terminate itself before trying to kill it not nicely
+        # Under windows, terminate() and kill() are equivalent
+        if process.poll() is None:
+            process.kill()
+
     def _read_pipe(
         stream,  # type: io.BinaryIO
         output_queue,  # type: Optional[queue.Queue]
@@ -350,6 +367,9 @@ def command_runner(
     ):
         # type: (...) -> Tuple[Optional[int], str]
         """
+        Process stdout/stderr output polling is only used in live output mode
+        because it can be unreliable
+
         Reads from process output pipe until:
         - Timeout is reached, in which case we'll terminate the process
         - Process ends by itself
@@ -370,21 +390,14 @@ def command_runner(
                 # App still working
                 try:
                     stream_output = output_queue.get(timeout=1.0)
-                    stream_output = to_encoding(stream_output, 'utf-8', 'backslashreplace')
+                    stream_output = to_encoding(stream_output, encoding, errors)
                     output += stream_output
                     if stream_output and live_output:
                         sys.stdout.write(stream_output)
 
 
                     if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                        # Try to terminate nicely before killing the process
-                        if os.name == "nt":
-                            _windows_child_kill(process.pid)
-                        process.terminate()
-                        # Let the process terminate itself before trying to kill it not nicely
-                        # Under windows, terminate() and kill() are equivalent
-                        if process.poll() is None:
-                            process.kill()
+                        kill(process)
                         raise TimeoutExpired(process, timeout, stream_output)
 
                 except queue.Empty:
@@ -392,6 +405,69 @@ def command_runner(
             return process.poll(), output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(stream_output)
+
+    def _timeout_check(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        timeout,  # type: int
+        mutable_obj,  # type: dict
+    ):
+        # type: (...) -> None
+
+        begin_time = datetime.now()
+
+        while True:
+            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                mutable_obj['is_timeout'] = True
+                break
+            if process.poll is None:
+                break
+            sleep(.1)
+        kill(process)
+
+
+
+    def _monitor_process(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        timeout,  # type: int
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # Let's create a mutable object since it will be shared with a thread
+        mutable_obj = {
+            'is_timeout': False
+        }
+
+        # type: (...) -> Tuple[Optional[int], str]
+        th = threading.Thread(target=_timeout_check, args=(process, timeout, mutable_obj),)
+        th.setDaemon(True)
+        th.start()
+
+        process_output = None
+        stdout = None
+
+        try:
+            # Don't use process.wait() since it may deadlock on old Python versions
+            # Also it won't allow communicate() to get incomplete output on timeouts
+            while process.poll() is None:
+                sleep(.1)
+                try:
+                    stdout, _ = process.communicate(timeout=1)
+                except TimeoutExpired:
+                    pass
+
+            exit_code = process.poll()
+            try:
+                stdout, _ = process.communicate(timeout=1)
+            except TimeoutExpired:
+                pass
+            process_output = to_encoding(stdout, encoding, errors)
+
+            if mutable_obj['is_timeout']:
+                raise TimeoutExpired(process, timeout, process_output)
+
+            return exit_code, process_output
+        except KeyboardInterrupt:
+            raise KbdInterruptGetOutput(process_output)
 
     try:
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
@@ -429,7 +505,10 @@ def command_runner(
             )
 
         try:
-            exit_code, output = _poll_process(process, timeout, encoding, errors)
+            if live_output:
+                exit_code, output = _poll_process(process, timeout, encoding, errors)
+            else:
+                exit_code, output = _monitor_process(process, timeout, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
             output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
@@ -529,10 +608,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-"""
-cmd = 'type c:\\GIT\\command_runner\\README.md'
-cmd = 'ping 127.0.0.1'
-e, o = command_runner(cmd, shell=True, live_output=True, encoding='ansi')
-print(e)
-print(o)
-"""
