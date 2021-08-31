@@ -19,7 +19,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.0.0-dev"
-__build__ = "2021081901"
+__build__ = "2021083101"
 
 import os
 import io
@@ -213,12 +213,10 @@ def command_runner(
             try:
                 process_output = process_output.decode(encoding, errors=errors)
             except TypeError:
-                print("nok")
                 try:
                     # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
                     process_output = process_output.decode(encoding, errors="ignore")
                 except (ValueError, TypeError):
-                    print("nik")
                     # What happens when str cannot be concatenated
                     logger.debug("Output cannot be captured {}".format(process_output))
         return process_output
@@ -307,7 +305,6 @@ def command_runner(
 
         try:
             while process.poll() is None:
-                # App still working
                 try:
                     stream_output = output_queue.get(timeout=1.0)
                     stream_output = to_encoding(stream_output, encoding, errors)
@@ -347,8 +344,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            sleep(.1)
-
+            sleep(0.1)
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
