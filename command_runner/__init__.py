@@ -19,16 +19,16 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.0.0-dev"
-__build__ = "2021083101"
+__build__ = "2021090601"
 
-import os
 import io
+import os
 import shlex
 import subprocess
 import sys
-from time import sleep
 from datetime import datetime
 from logging import getLogger
+from time import sleep
 
 # Python 2.7 compat fixes (queue was Queue)
 try:
@@ -91,6 +91,7 @@ class KbdInterruptGetOutput(BaseException):
 
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
+MIN_RESOLUTION = 0.05  # Minimal sleep time between polling, reduces CPU usage
 
 
 def command_runner(
@@ -160,6 +161,9 @@ def command_runner(
         # pylint: disable=E1101
         creationflags = creationflags | subprocess.CREATE_NO_WINDOW
     close_fds = kwargs.pop("close_fds", "posix" in sys.builtin_module_names)
+
+    # Default buffer size. line buffer (1) is deprecated in Python 3.7+
+    bufsize = kwargs.pop("bufsize", 16384)
 
     # Decide whether we write to output variable only (stdout=None), to output variable and stdout (stdout=PIPE)
     # or to output variable and to file (stdout='path/to/file')
@@ -239,44 +243,25 @@ def command_runner(
             process.kill()
 
     def _read_pipe(
-        stream,  # type: io.BinaryIO
-        output_queue,  # type: Optional[queue.Queue]
+        stream,  # type: io.StringIO
+        output_queue,  # type: queue.Queue
     ):
         # type: (...) -> None
         """
         will read from subprocess.PIPE
         Must be threaded since readline() might be blocking on Windows GUI apps
+
+        Partly based on https://stackoverflow.com/a/4896288/2635443
         """
-        int_queue = queue.Queue()
 
-        def stream_reader():
-            while True:
-                buffer = stream.read1(8192)
-                if len(buffer) > 0:
-                    int_queue.put(buffer)
-                else:
-                    int_queue.put(None)
-                    return
+        # WARNING: Depending on the stream type (binary or text), the sentinel character
+        # needs to be of the same type, or the iterator won't have an end
 
-        def queue_transfer():
-            active = True
-            while active:
-                output = int_queue.get()
-                try:
-                    while True:
-                        partial_output = int_queue.get(timeout=0.005)
-                        if partial_output is None:
-                            active = False
-                            break
-                        output += partial_output
-                except queue.Empty:
-                    pass
-                output_queue.put(output)
-
-        for function in [stream_reader, queue_transfer]:
-            thread = threading.Thread(target=function)
-            thread.setDaemon(True)
-            thread.start()
+        sentinel_char = "" if hasattr(stream, "encoding") else b""
+        for line in iter(stream.readline, sentinel_char):
+            output_queue.put(line)
+        output_queue.put(None)
+        stream.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -297,20 +282,29 @@ def command_runner(
         """
 
         begin_time = datetime.now()
-
         output = ""
         output_queue = queue.Queue()
-        with io.open(process.stdout.fileno(), "rb", closefd=False) as stdout:
-            _read_pipe(stdout, output_queue)
 
         try:
-            while process.poll() is None:
+            read_thread = threading.Thread(
+                target=_read_pipe, args=(process.stdout, output_queue)
+            )
+            read_thread.daemon = True  # thread dies with the program
+            read_thread.start()
+
+            while True:
                 try:
-                    stream_output = output_queue.get(timeout=1.0)
-                    stream_output = to_encoding(stream_output, encoding, errors)
-                    output += stream_output
-                    if stream_output and live_output:
-                        sys.stdout.write(stream_output)
+                    line = output_queue.get(timeout=MIN_RESOLUTION)
+                except queue.Empty:
+                    pass
+                else:
+                    if line is None:
+                        break
+                    else:
+                        line = to_encoding(line, encoding, errors)
+                        if live_output:
+                            sys.stdout.write(line)
+                        output += line
 
                     if (
                         timeout
@@ -319,9 +313,18 @@ def command_runner(
                         kill(process)
                         raise TimeoutExpired(process, timeout, output)
 
-                except queue.Empty:
-                    pass
-            return process.poll(), output
+            # Make sure we wait for the process to terminate, even after
+            # output_queue has finished sending data, so we catch the exit code
+            while process.poll() is None:
+                if (
+                        timeout
+                        and (datetime.now() - begin_time).total_seconds() > timeout
+                ):
+                    kill(process)
+                    raise TimeoutExpired(process, timeout, output)
+            exit_code = process.poll()
+            return exit_code, output
+
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(output)
 
@@ -344,7 +347,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            sleep(0.1)
+            sleep(MIN_RESOLUTION)
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -375,7 +378,7 @@ def command_runner(
             # Don't use process.wait() since it may deadlock on old Python versions
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
-                sleep(0.1)
+                sleep(MIN_RESOLUTION)
                 try:
                     stdout, _ = process.communicate()
                 # ValueError is raised on closed IO file
@@ -397,6 +400,9 @@ def command_runner(
             raise KbdInterruptGetOutput(process_output)
 
     try:
+        # Finally, we won't use encoding & errors arguments for Popen
+        # since it would defeat the idea of binary pipe reading in live mode
+
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
         # Python >= 3.6 has encoding & error arguments
         # universal_newlines=True makes netstat command fail under windows
@@ -414,7 +420,7 @@ def command_runner(
                 encoding=encoding,
                 errors=errors,
                 creationflags=creationflags,
-                bufsize=1,  # 1 = line buffered
+                bufsize=bufsize,  # 1 = line buffered
                 close_fds=close_fds,
                 **kwargs
             )
@@ -426,7 +432,7 @@ def command_runner(
                 shell=shell,
                 universal_newlines=universal_newlines,
                 creationflags=creationflags,
-                bufsize=1,
+                bufsize=bufsize,
                 close_fds=close_fds,
                 **kwargs
             )
