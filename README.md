@@ -10,7 +10,8 @@
 [![GitHub Release](https://img.shields.io/github/release/netinvent/command_runner.svg?label=Latest)](https://github.com/netinvent/command_runner/releases/latest)
 
 
-command_runner is solution for rapid development that tries to solve various problems a developper may face among:
+command_runner's purpose is to run external commands from python, just like subprocess on which it is based, 
+while solving various problems a developper may face among:
    - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function
    - System agnostic functionalty, the developper shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
@@ -30,11 +31,10 @@ It works as wrapper for subprocess.popen and subprocess.check_output that solves
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
       - Handle encoding even on earlier Python implementations
-   - Promises to always return an exit code
-   - Promises to always return the command output regardless of the execution state (even with timeouts and keyboard interrupts)
-   - Can show command_output on the fly without waiting the end of execution (with stdout=command_runner.PIPE argument)
+   - Keep the promise to always return an exit code (so we don't have to deal with exit codes and exception logic at the same time)
+   - Keep the promise to always return the command output regardless of the execution state (even with timeouts and keyboard interrupts)
+   - Can show command output on the fly without waiting the end of execution (with live_output=True argument)
    - Catch all possible exceptions and log them
-   - Allows live stdout output of current execution
 
 
    
@@ -72,6 +72,8 @@ Those exit codes are:
 - -254 : Timeout
 - -255 : Any other uncatched exceptions
 
+This allows you to use the standard exit code logic, without having to deal with various exceptions.
+
 #### Default encoding
 
 command_runner has an `encoding` argument which defaults to `utf-8` for Unixes and `cp437` for Windows platforms.
@@ -79,7 +81,8 @@ Using `cp437` ensures that most `cmd.exe` output is encoded properly, including 
 Still you can specify your own encoding for other usages, like Powershell where `unicode_escape` is preferred.
 
 ```
-exit_code, output = command_runner(r'C:\Windows\sysnative\WindowsPowerShell\v1.0\powershell.exe --help', encoding='unicode_escape')
+command = r'C:\Windows\sysnative\WindowsPowerShell\v1.0\powershell.exe --help'
+exit_code, output = command_runner(command, encoding='unicode_escape')
 ```
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
@@ -88,16 +91,16 @@ Earlier subprocess.popen implementations didn't have an encoding setting so comm
 
 command_runner can output a command output on the fly to stdout, eg show output during execution.
 This is helpful when the command is long, and we need to know the output while execution is ongoing.
-
+It is also helpful in order to catch partial command output when timeout is reached or a CTRL+C signal is received.
 Example:
 
 ```
-from command_runner import command_runner, PIPE
+from command_runner import command_runner
 
-exit_code, output = command_runner('ping 127.0.0.1', stdout=PIPE)
+exit_code, output = command_runner('ping 127.0.0.1', shell=True, live_output=True)
 ```
 
-**WARNING** Live output should be used for debugging purposes only, since it may not read all output from the process.
+Note: using live output relies on stdout pipe polling, which has lightly higher cpu usage.
 
 #### To file redirection
 
@@ -106,14 +109,15 @@ command_runner can redirect stdout and stderr to files.
 Example (of course this also works with unix paths):
 
 ```bash
-exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error'
+exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error', shell=True)
 ```
 
 #### Timeouts
 
 **command_runner as a `timeout` argument which defaults to 3600 seconds.**
 This default setting ensures commands will not block the main script execution.
-Feel free to lower / higher that setting with `timeout` argument
+Feel free to lower / higher that setting with `timeout` argument.
+Note that a command_runner kills the whole process tree that the command may have generated, even under Windows.
 
 ```
 exit_code, command_runner('ping 127.0.0.1', timeout=30)
@@ -136,6 +140,26 @@ import command_runner
 
 logging.getLogger('command_runner').setLevel(logging.ERROR)
 ```
+
+#### Other arguments
+
+`command_runner` takes **any** argument that `subprocess.Popen()` would take.
+
+It also uses the following standard arguments:
+ - command: The command, doesn't need to be a list, a simple string works
+ - valid_exit_codes: List of exit codes which won't trigger error logs
+ - timeout: seconds before a process tree is killed forcefully, defaults to 3600
+ - shell: Shall we use the cmd.exe or /usr/bin/env shell for command execution, defaults to False
+ - encoding: Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
+ - stdout: Optional path to filename where to dump stdout
+ - stderr: Optional path to filename where to dump stderr
+ - windows_no_window: Shall a command create a console window (MS Windows only), defaults to False
+ - live_output: Print output to stdout while executing command, defaults to False
+ - close_fds: Like Popen, defaults to True on Linux and False on Windows
+ - universal_newlines: Like Popen, defaults to False
+ - creation_flags: Like Popen, defaults to 0
+ - bufsize: Like Popen, defaults to 16384. Line buffering (bufsize=1) is deprecated since Python 3.7
+
 
 ## UAC Elevation / sudo elevation
 
