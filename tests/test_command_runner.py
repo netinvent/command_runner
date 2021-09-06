@@ -141,15 +141,16 @@ def test_read_file():
     with open(test_filename, 'r') as file:
         file_content = file.read()
 
-    for round in range(0, 250):
-        print('Comparaison round {}'.format(round))
-        if os.name == 'nt':
-            exit_code, output = command_runner('type {}'.format(test_filename), shell=True)
-            output = output.replace('\r\n', '\n')
-        else:
-            exit_code, output = command_runner('cat {}'.format(test_filename), shell=True)
+    for live_output in [True, False]:
+        for round in range(0, 2500):
+            print('Comparaison round {} with live_output='.format(round, live_output))
+            if os.name == 'nt':
+                exit_code, output = command_runner('type {}'.format(test_filename), shell=True, live_output=live_output)
+                output = output.replace('\r\n', '\n')
+            else:
+                exit_code, output = command_runner('cat {}'.format(test_filename), shell=True, live_output=live_output)
 
-        assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
-                                                                                             output)
+            assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
+                                                                                                 output)
 
-        assert file_content == output, 'Round {} File content and output are not identical'.format(round)
+            assert file_content == output, 'Round {} File content and output are not identical'.format(round)
