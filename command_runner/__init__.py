@@ -18,7 +18,7 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.0.0-dev"
+__version__ = "1.1.0"
 __build__ = "2021090601"
 
 import io
@@ -272,7 +272,7 @@ def command_runner(
         # type: (...) -> Tuple[Optional[int], str]
         """
         Process stdout/stderr output polling is only used in live output mode
-        because it can be unreliable
+        since it takes more resources than using communicate()
 
         Reads from process output pipe until:
         - Timeout is reached, in which case we'll terminate the process
@@ -316,10 +316,7 @@ def command_runner(
             # Make sure we wait for the process to terminate, even after
             # output_queue has finished sending data, so we catch the exit code
             while process.poll() is None:
-                if (
-                        timeout
-                        and (datetime.now() - begin_time).total_seconds() > timeout
-                ):
+                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                     kill(process)
                     raise TimeoutExpired(process, timeout, output)
             exit_code = process.poll()
