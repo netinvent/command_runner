@@ -26,9 +26,15 @@ import os
 import shlex
 import subprocess
 import sys
+import psutil
 from datetime import datetime
 from logging import getLogger
 from time import sleep
+
+try:
+    import psutil
+except ImportError:
+    pass
 
 # Python 2.7 compat fixes (queue was Queue)
 try:
@@ -92,6 +98,49 @@ class KbdInterruptGetOutput(BaseException):
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 MIN_RESOLUTION = 0.05  # Minimal sleep time between polling, reduces CPU usage
+
+
+def kill_childs_mod(
+    pid=None,  # type: int
+    itself=False,  # type: bool
+    soft_kill=False,  # type: bool
+):
+    # type: (...) -> bool
+    """
+    Inline version of ofunctions.kill_childs that has no hard dependency on psutil
+
+    Kills all childs of pid (current pid can be obtained with os.getpid())
+    If no pid given current pid is taken
+    Good idea when using multiprocessing, is to call with atexit.register(ofunctions.kill_childs, os.getpid(),)
+
+    Beware: MS Windows does not maintain a process tree, so child dependencies are computed on the fly
+    Knowing this, orphaned processes (where parent process died) cannot be found and killed this way
+
+    :param pid: Which pid tree we'll kill
+    :param itself: Should parent be killed too ?
+    """
+
+    ### BEGIN COMMAND_RUNNER MOD
+    if "psutil" not in sys.modules:
+        logger.error(
+            "No psutil module present. Can only kill direct pids, not child subtree."
+        )
+        return False
+    ### END COMMAND_RUNNER MOD
+
+    parent = psutil.Process(pid if pid is not None else os.getpid())
+
+    for child in parent.children(recursive=True):
+        if soft_kill:
+            child.terminate()
+        else:
+            child.kill()
+    if itself:
+        if soft_kill:
+            parent.terminate()
+        else:
+            parent.kill()
+    return True
 
 
 def command_runner(
@@ -187,22 +236,6 @@ def command_runner(
         _stderr = subprocess.STDOUT
         stderr_to_file = False
 
-    def _windows_child_kill(
-        pid,  # type: int
-    ):
-        # type: (...) -> None
-        """
-        windows does not have child process trees
-        So in order to deal with child process kills, we need to use a system tool here
-        """
-        dev_null = open(os.devnull, "w")
-        subprocess.call(
-            ["taskkill", "/F", "/T", "/PID", str(pid)],
-            stdin=dev_null,
-            stdout=dev_null,
-            stderr=dev_null,
-        )
-
     def to_encoding(
         process_output,  # type: Union[str, bytes]
         encoding,  # type: str
@@ -224,23 +257,6 @@ def command_runner(
                     # What happens when str cannot be concatenated
                     logger.debug("Output cannot be captured {}".format(process_output))
         return process_output
-
-    def kill(
-        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
-    ):
-        # type: (...) -> None
-        """
-        OS agnostic process kill function
-        """
-
-        # Try to terminate nicely before killing the process
-        if os.name == "nt":
-            _windows_child_kill(process.pid)
-        process.terminate()
-        # Let the process terminate itself before trying to kill it not nicely
-        # Under windows, terminate() and kill() are equivalent
-        if process.poll() is None:
-            process.kill()
 
     def _read_pipe(
         stream,  # type: io.StringIO
@@ -285,6 +301,20 @@ def command_runner(
         output = ""
         output_queue = queue.Queue()
 
+        def __check_timeout(
+            begin_time,  # type: datetime.timestamp
+            timeout,  # type: int
+        ):
+            # type: (...) -> None
+            """
+            Simple subfunction to check whether timeout is reached
+            Since we check this alot, we put it into a function
+            """
+
+            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                raise TimeoutExpired(process, timeout, output)
+
         try:
             read_thread = threading.Thread(
                 target=_read_pipe, args=(process.stdout, output_queue)
@@ -296,7 +326,7 @@ def command_runner(
                 try:
                     line = output_queue.get(timeout=MIN_RESOLUTION)
                 except queue.Empty:
-                    pass
+                    __check_timeout(begin_time, timeout)
                 else:
                     if line is None:
                         break
@@ -305,20 +335,12 @@ def command_runner(
                         if live_output:
                             sys.stdout.write(line)
                         output += line
-
-                    if (
-                        timeout
-                        and (datetime.now() - begin_time).total_seconds() > timeout
-                    ):
-                        kill(process)
-                        raise TimeoutExpired(process, timeout, output)
+                    __check_timeout(begin_time, timeout)
 
             # Make sure we wait for the process to terminate, even after
             # output_queue has finished sending data, so we catch the exit code
             while process.poll() is None:
-                if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                    kill(process)
-                    raise TimeoutExpired(process, timeout, output)
+                __check_timeout(begin_time, timeout)
             exit_code = process.poll()
             return exit_code, output
 
@@ -340,7 +362,7 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 timeout_dict["is_timeout"] = True
-                kill(process)
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 break
             if process.poll() is not None:
                 break
@@ -435,7 +457,7 @@ def command_runner(
             )
 
         try:
-            if live_output:
+            if True:  # WIP
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
@@ -443,10 +465,7 @@ def command_runner(
             exit_code = -252
             output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
-                process.kill()
-                if os.name == "nt":
-                    _windows_child_kill(process.pid)
-                process.kill()
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
             except AttributeError:
                 pass
             if stdout_to_file:
@@ -539,3 +558,7 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+
+cmd = 'ping 127.0.0.1 -t && echo "ok"'
+print(command_runner(cmd, shell=True, timeout=2, live_output=True))
