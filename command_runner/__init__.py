@@ -433,13 +433,15 @@ def command_runner(
                 sleep(MIN_RESOLUTION)
                 if timeout_dict["is_timeout"]:
                     break
-                """
+
+                # We still need to use process.communicate() in this loop so we don't get stuck
+                # with poll() is not None even after process is finished
                 try:
                     stdout, _ = process.communicate()
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
-                """
+
 
             exit_code = process.poll()
             try:
