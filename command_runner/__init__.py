@@ -26,14 +26,15 @@ import os
 import shlex
 import subprocess
 import sys
-import psutil
 from datetime import datetime
 from logging import getLogger
 from time import sleep
 
 try:
     import psutil
+    import signal
 except ImportError:
+    # Don't bother with an error since we need command_runner to work without dependencies
     pass
 
 # Python 2.7 compat fixes (queue was Queue)
@@ -116,9 +117,12 @@ def kill_childs_mod(
     Beware: MS Windows does not maintain a process tree, so child dependencies are computed on the fly
     Knowing this, orphaned processes (where parent process died) cannot be found and killed this way
 
+    Prefer using process.send_signal() in favor of process.kill() to avoid race conditions when PID was reused too fast
+
     :param pid: Which pid tree we'll kill
     :param itself: Should parent be killed too ?
     """
+    sig = None
 
     ### BEGIN COMMAND_RUNNER MOD
     if "psutil" not in sys.modules:
@@ -126,20 +130,36 @@ def kill_childs_mod(
             "No psutil module present. Can only kill direct pids, not child subtree."
         )
         return False
+    if "signal" not in sys.modules:
+        logger.error(
+            "No signal module present. Using direct psutil kill API which might have race conditions when PID is reused too fast."
+        )
+    else:
+        # MS Windows does not support SIGKILL, only SIGTERM, CTRL_C_EVENT or CTRL_BREAK_EVENT signals
+        sig = signal.SIGTERM if (soft_kill or os.name == 'nt') else signal.SIGKILL
     ### END COMMAND_RUNNER MOD
 
-    parent = psutil.Process(pid if pid is not None else os.getpid())
+    try:
+        parent = psutil.Process(pid if pid is not None else os.getpid())
+    except psutil.NoSuchProcess:
+        return False
 
     for child in parent.children(recursive=True):
-        if soft_kill:
-            child.terminate()
+        if sig:
+            child.send_signal(sig)
         else:
-            child.kill()
+            if soft_kill:
+                child.terminate()
+            else:
+                child.kill()
     if itself:
-        if soft_kill:
-            parent.terminate()
+        if sig:
+            parent.send_signal(sig)
         else:
-            parent.kill()
+            if soft_kill:
+                parent.terminate()
+            else:
+                parent.kill()
     return True
 
 
@@ -273,11 +293,13 @@ def command_runner(
         # WARNING: Depending on the stream type (binary or text), the sentinel character
         # needs to be of the same type, or the iterator won't have an end
 
-        sentinel_char = "" if hasattr(stream, "encoding") else b""
-        for line in iter(stream.readline, sentinel_char):
-            output_queue.put(line)
-        output_queue.put(None)
-        stream.close()
+        # We also need to check that stream has readline, in case we're writing to files instead of PIPE
+        if hasattr(stream, "readline"):
+            sentinel_char = "" if hasattr(stream, "encoding") else b""
+            for line in iter(stream.readline, sentinel_char):
+                output_queue.put(line)
+            output_queue.put(None)
+            stream.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -558,7 +580,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-
-cmd = 'ping 127.0.0.1 -t && echo "ok"'
-print(command_runner(cmd, shell=True, timeout=2, live_output=True))
