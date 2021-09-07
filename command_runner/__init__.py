@@ -129,7 +129,6 @@ def kill_childs_mod(
         logger.error(
             "No psutil module present. Can only kill direct pids, not child subtree."
         )
-        return False
     if "signal" not in sys.modules:
         logger.error(
             "No signal module present. Using direct psutil kill API which might have race conditions when PID is reused too fast."
@@ -152,6 +151,9 @@ def kill_childs_mod(
     try:
         parent = psutil.Process(pid if pid is not None else os.getpid())
     except psutil.NoSuchProcess:
+        return False
+    except NameError:
+        os.kill(pid, sig)
         return False
 
     for child in parent.children(recursive=True):
@@ -178,7 +180,7 @@ def command_runner(
     valid_exit_codes=None,  # type: Optional[List[int]]
     timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
-    encoding=None,  # type: str
+    encoding=None,  # type: Optional[str]
     stdout=None,  # type: Union[int, str]
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
