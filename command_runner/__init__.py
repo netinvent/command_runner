@@ -489,7 +489,7 @@ def command_runner(
             )
 
         try:
-            if True:  # WIP
+            if live_output:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
