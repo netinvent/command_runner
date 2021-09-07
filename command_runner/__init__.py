@@ -142,6 +142,8 @@ def kill_childs_mod(
         an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
         """
         if not soft_kill and hasattr(signal, 'SIGKILL'):
+            # Don't bother to make pylint go crazy on Windows
+            # pylint: disable=E1101
             sig = signal.SIGKILL
         else:
             sig = signal.SIGTERM
