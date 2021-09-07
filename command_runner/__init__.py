@@ -158,15 +158,22 @@ def kill_childs_mod(
 
     for child in parent.children(recursive=True):
         if sig:
-            child.send_signal(sig)
+            try:
+                child.send_signal(sig)
+            except psutil.NoSuchProcess:
+                pass
         else:
             if soft_kill:
                 child.terminate()
             else:
                 child.kill()
+
     if itself:
         if sig:
-            parent.send_signal(sig)
+            try:
+                parent.send_signal(sig)
+            except psutil.NoSuchProcess:
+                pass
         else:
             if soft_kill:
                 parent.terminate()
