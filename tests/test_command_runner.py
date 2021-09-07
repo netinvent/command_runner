@@ -20,6 +20,7 @@ __copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
 __build__ = '2021090701'
 
+
 from command_runner import *
 
 methods = ['monitor', 'poller']
@@ -39,6 +40,16 @@ def test_standard_ping_with_encoding():
     """
     for method in methods:
         exit_code, output = command_runner(PING_CMD, encoding=ENCODING, method=method)
+        print(output)
+        assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+
+def test_standard_ping_without_encoding():
+    """
+    Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
+    This could only happen on python <3.6 since command_runner decides to use an encoding anyway
+    """
+    for method in methods:
+        exit_code, output = command_runner(PING_CMD, encoding=None, method=method)
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
@@ -154,19 +165,6 @@ def test_create_no_window():
         assert exit_code == 0, 'Should have worked too with method {}'.format(method)
 
 
-def test_deferred_command():
-    """
-    Using deferred_command in order to run a command after a given timespan
-    """
-    test_filename = 'deferred_test_file'
-    assert os.path.isfile(test_filename) is False, 'Test file should not exist prior to test'
-    deferred_command('echo test > {}'.format(test_filename), defer_time=5)
-    assert os.path.isfile(test_filename) is False, 'File should not exist yet'
-    sleep(6)
-    assert os.path.isfile(test_filename) is True, 'File should exist now'
-    os.remove(test_filename)
-
-
 def test_read_file():
     """
     Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
@@ -188,3 +186,16 @@ def test_read_file():
             assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(test_filename, method, exit_code,
                                                                                                  output)
             assert file_content == output, 'Round {} File content and output are not identical, method={}'.format(round, method)
+
+
+def test_deferred_command():
+    """
+    Using deferred_command in order to run a command after a given timespan
+    """
+    test_filename = 'deferred_test_file'
+    assert os.path.isfile(test_filename) is False, 'Test file should not exist prior to test'
+    deferred_command('echo test > {}'.format(test_filename), defer_time=5)
+    assert os.path.isfile(test_filename) is False, 'File should not exist yet'
+    sleep(6)
+    assert os.path.isfile(test_filename) is True, 'File should exist now'
+    os.remove(test_filename)
