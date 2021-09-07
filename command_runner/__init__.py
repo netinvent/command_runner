@@ -140,7 +140,7 @@ def kill_childs_mod(
         A ValueError will be raised in any other case. Note that not all systems define the same set of signal names;
         an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
         """
-        if not soft_kill and hasattr(signal, 'SIGKILL'):
+        if not soft_kill and hasattr(signal, "SIGKILL"):
             # Don't bother to make pylint go crazy on Windows
             # pylint: disable=E1101
             sig = signal.SIGKILL
@@ -185,7 +185,7 @@ def command_runner(
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
-    method='monitor',  # type: str
+    method="monitor",  # type: str
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -444,7 +444,6 @@ def command_runner(
                 except (TimeoutExpired, ValueError):
                     pass
 
-
             exit_code = process.poll()
             try:
                 stdout, _ = process.communicate()
@@ -498,7 +497,7 @@ def command_runner(
             )
 
         try:
-            if method == 'poller' or live_output:
+            if method == "poller" or live_output:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
