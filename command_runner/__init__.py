@@ -32,9 +32,12 @@ from time import sleep
 
 try:
     import psutil
-    import signal
 except ImportError:
     # Don't bother with an error since we need command_runner to work without dependencies
+    pass
+try:
+    import signal
+except ImportError:
     pass
 
 # Python 2.7 compat fixes (queue was Queue)
@@ -140,12 +143,15 @@ def kill_childs_mod(
         A ValueError will be raised in any other case. Note that not all systems define the same set of signal names;
         an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
         """
-        if not soft_kill and hasattr(signal, "SIGKILL"):
-            # Don't bother to make pylint go crazy on Windows
-            # pylint: disable=E1101
-            sig = signal.SIGKILL
-        else:
-            sig = signal.SIGTERM
+        try:
+            if not soft_kill and hasattr(signal, "SIGKILL"):
+                # Don't bother to make pylint go crazy on Windows
+                # pylint: disable=E1101
+                sig = signal.SIGKILL
+            else:
+                sig = signal.SIGTERM
+        except NameError:
+            sig = None
     ### END COMMAND_RUNNER MOD
 
     def _process_killer(process,  # type: Union[subprocess.Popen, psutil.Process]
@@ -160,7 +166,9 @@ def kill_childs_mod(
         if sig:
             try:
                 process.send_signal(sig)
-            except psutil.NoSuchProcess:
+            # psutil.NoSuchProcess might not be available, let's be broad
+            # pylint: disable=W0703
+            except Exception:
                 pass
         else:
             if soft_kill:
@@ -169,18 +177,19 @@ def kill_childs_mod(
                 process.kill()
 
     try:
-        parent = psutil.Process(pid if pid is not None else os.getpid())
-    except psutil.NoSuchProcess:
-        return False
-    except NameError:
-        os.kill(pid, sig)
+        current_process = psutil.Process(pid if pid is not None else os.getpid())
+    # psutil.NoSuchProcess might not be available, let's be broad
+    # pylint: disable=W0703
+    except Exception:
+        if itself:
+            os.kill(pid, 15) # 15 being signal.SIGTERM or SIGKILL depending on the platform
         return False
 
-    for child in parent.children(recursive=True):
+    for child in current_process.children(recursive=True):
         _process_killer(child, sig, soft_kill)
 
     if itself:
-        _process_killer(parent, sig, soft_kill)
+        _process_killer(current_process, sig, soft_kill)
     return True
 
 
