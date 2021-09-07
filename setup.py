@@ -75,7 +75,7 @@ setuptools.setup(
     # packages = ['command_runner'],
     packages=setuptools.find_packages(),
     version=metadata['version'],
-    # install_requires=requirements,
+    install_requires=requirements,
     classifiers=[
         # command_runner is mature
         "Development Status :: 5 - Production/Stable",
