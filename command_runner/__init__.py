@@ -183,6 +183,7 @@ def command_runner(
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
+    method='monitor',  # type: str
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -379,7 +380,7 @@ def command_runner(
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(output)
 
-    def _timeout_check(
+    def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
         timeout_dict,  # type: dict
@@ -393,8 +394,8 @@ def command_runner(
         begin_time = datetime.now()
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
-                timeout_dict["is_timeout"] = True
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                timeout_dict["is_timeout"] = True
                 break
             if process.poll() is not None:
                 break
@@ -416,7 +417,7 @@ def command_runner(
         timeout_dict = {"is_timeout": False}
 
         thread = threading.Thread(
-            target=_timeout_check,
+            target=_timeout_check_thread,
             args=(process, timeout, timeout_dict),
         )
         thread.setDaemon(True)
@@ -430,11 +431,15 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(MIN_RESOLUTION)
+                if timeout_dict["is_timeout"]:
+                    break
+                """
                 try:
                     stdout, _ = process.communicate()
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
+                """
 
             exit_code = process.poll()
             try:
@@ -489,7 +494,7 @@ def command_runner(
             )
 
         try:
-            if live_output:
+            if method == 'poller' or live_output:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
