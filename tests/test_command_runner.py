@@ -81,7 +81,8 @@ def test_timeout_with_subtree_killing():
         exit_code, output = command_runner(cmd, shell=True, timeout=1, method=method)
         print(output)
         end_time = datetime.now()
-        assert (end_time - begin_time).total_seconds() < 2, 'It took more than 2 seconds for a timeout=1 command to finish with method {}'.format(method)
+        elapsed_time = (end_time - begin_time).total_seconds()
+        assert elapsed_time < 2, 'It took more than 2 seconds for a timeout=1 command to finish with method {}'.format(method)
         assert exit_code == -254, 'Exit code should be -254 on timeout with method {}'.format(method)
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
