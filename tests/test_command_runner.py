@@ -52,6 +52,23 @@ def test_timeout():
     assert exit_code == -254, 'Exit code should be -254 on timeout'
     assert 'Timeout' in output, 'Output should have timeout'
 
+def test_timeout_with_subtree_killing():
+    """
+    Launch a subtree of long commands and see if timeout actually kills them in time
+    """
+    if os.name != 'nt':
+        cmd = 'echo "test" && sleep 30 && echo "done"'
+    else:
+        cmd = 'echo test && {} && echo done'.format(PING_CMD)
+
+    begin_time = datetime.now()
+    exit_code, output = command_runner(cmd, shell=True, timeout=1)
+    print(output)
+    end_time = datetime.now()
+    assert (end_time - begin_time).total_seconds() < 2, 'It took more than 2 seconds for a timeout=1 command to finish'
+    assert exit_code == -254, 'Exit code should be -254 on timeout'
+    assert 'Timeout' in output, 'Output should have timeout'
+
 
 def test_no_timeout():
     """
