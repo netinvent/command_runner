@@ -34,9 +34,8 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         python -m flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics command_runner
     - name: Lint with Black
-      with:
-        # Don't run on python < 3.6 since black does not exist there
-        python-version: '3.9'
+      # Don't run on python < 3.6 since black does not exist there, run only once
+      if: ${{ matrix.python-version == '3.9') }}
       run: |
         pip install black
         python -m black command_runner
