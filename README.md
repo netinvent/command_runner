@@ -141,6 +141,23 @@ import command_runner
 logging.getLogger('command_runner').setLevel(logging.ERROR)
 ```
 
+#### Capture method
+
+`command_runner` allows two different process output capture methods:
+
+`method='monitor'` which is default:
+ - A thread is spawned in order to check timeout and kill process if needed
+ - A main loop waits for the process to finish, then uses proc.communicate() to get it's output
+ - Pros: less CPU usage
+ - Cons: cannot read partial output on KeyboardInterrupt (still works for partial timeout output)
+
+`method='poller'`:
+ - A thread is spawned and reads stdout pipe into a output queue
+ - A poller loop reads from the output queue and checks timeout
+ - Pros: Reads on the fly, allowing interactive commands (is also used with `live_output=True`)
+ - Cons: Lightly higher CPU usage
+
+
 #### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
@@ -155,6 +172,7 @@ It also uses the following standard arguments:
  - stderr: Optional path to filename where to dump stderr
  - windows_no_window: Shall a command create a console window (MS Windows only), defaults to False
  - live_output: Print output to stdout while executing command, defaults to False
+ - method: Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
  - close_fds: Like Popen, defaults to True on Linux and False on Windows
  - universal_newlines: Like Popen, defaults to False
  - creation_flags: Like Popen, defaults to 0
