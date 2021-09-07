@@ -18,9 +18,10 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "0.7.0"
-__build__ = "2021080201"
+__version__ = "1.2.0"
+__build__ = "2021090701"
 
+import io
 import os
 import shlex
 import subprocess
@@ -29,13 +30,19 @@ from datetime import datetime
 from logging import getLogger
 from time import sleep
 
+try:
+    import psutil
+    import signal
+except ImportError:
+    # Don't bother with an error since we need command_runner to work without dependencies
+    pass
+
 # Python 2.7 compat fixes (queue was Queue)
 try:
-    import Queue
+    import queue
 except ImportError:
-    import queue as Queue
+    import Queue as queue
 import threading
-
 
 # Python 2.7 compat fixes (missing typing and FileNotFoundError)
 try:
@@ -56,45 +63,136 @@ except AttributeError:
         Basic redeclaration when subprocess.TimeoutExpired does not exist, python <= 3.3
         """
 
-        pass
+        def __init__(self, cmd, timeout, output=None, stderr=None):
+            self.cmd = cmd
+            self.timeout = timeout
+            self.output = output
+            self.stderr = stderr
+
+        def __str__(self):
+            return "Command '%s' timed out after %s seconds" % (self.cmd, self.timeout)
+
+        @property
+        def stdout(self):
+            return self.output
+
+        @stdout.setter
+        def stdout(self, value):
+            # There's no obvious reason to set this, but allow it anyway so
+            # .stdout is a transparent alias for .output
+            self.output = value
+
+
+class KbdInterruptGetOutput(BaseException):
+    """
+    Make sure we get the current output when KeyboardInterrupt is made
+    """
+
+    def __init__(self, output):
+        self._output = output
+
+    @property
+    def output(self):
+        return self._output
 
 
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
+MIN_RESOLUTION = 0.05  # Minimal sleep time between polling, reduces CPU usage
 
 
-def thread_with_result_queue(fn):
+def kill_childs_mod(
+    pid=None,  # type: int
+    itself=False,  # type: bool
+    soft_kill=False,  # type: bool
+):
+    # type: (...) -> bool
     """
-    Python 2.7 compatible implementation of concurrent.futures
-    Executes decorated function as thread and adds a queue for result communication
+    Inline version of ofunctions.kill_childs that has no hard dependency on psutil
+
+    Kills all childs of pid (current pid can be obtained with os.getpid())
+    If no pid given current pid is taken
+    Good idea when using multiprocessing, is to call with atexit.register(ofunctions.kill_childs, os.getpid(),)
+
+    Beware: MS Windows does not maintain a process tree, so child dependencies are computed on the fly
+    Knowing this, orphaned processes (where parent process died) cannot be found and killed this way
+
+    Prefer using process.send_signal() in favor of process.kill() to avoid race conditions when PID was reused too fast
+
+    :param pid: Which pid tree we'll kill
+    :param itself: Should parent be killed too ?
     """
+    sig = None
 
-    def wrapped_fn(queue, *args, **kwargs):
-        result = fn(*args, **kwargs)
-        queue.put(result)
-
-    def wrapper(*args, **kwargs):
-        queue = Queue.Queue()
-
-        child_thread = threading.Thread(
-            target=wrapped_fn, args=(queue,) + args, kwargs=kwargs
+    ### BEGIN COMMAND_RUNNER MOD
+    if "psutil" not in sys.modules:
+        logger.error(
+            "No psutil module present. Can only kill direct pids, not child subtree."
         )
-        child_thread.start()
-        child_thread.result_queue = queue
-        return child_thread
+    if "signal" not in sys.modules:
+        logger.error(
+            "No signal module present. Using direct psutil kill API which might have race conditions when PID is reused too fast."
+        )
+    else:
+        """
+        Extract from Python3 doc
+        On Windows, signal() can only be called with SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, SIGTERM, or SIGBREAK.
+        A ValueError will be raised in any other case. Note that not all systems define the same set of signal names;
+        an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
+        """
+        if not soft_kill and hasattr(signal, "SIGKILL"):
+            # Don't bother to make pylint go crazy on Windows
+            # pylint: disable=E1101
+            sig = signal.SIGKILL
+        else:
+            sig = signal.SIGTERM
+    ### END COMMAND_RUNNER MOD
 
-    return wrapper
+    try:
+        parent = psutil.Process(pid if pid is not None else os.getpid())
+    except psutil.NoSuchProcess:
+        return False
+    except NameError:
+        os.kill(pid, sig)
+        return False
+
+    for child in parent.children(recursive=True):
+        if sig:
+            try:
+                child.send_signal(sig)
+            except psutil.NoSuchProcess:
+                pass
+        else:
+            if soft_kill:
+                child.terminate()
+            else:
+                child.kill()
+
+    if itself:
+        if sig:
+            try:
+                parent.send_signal(sig)
+            except psutil.NoSuchProcess:
+                pass
+        else:
+            if soft_kill:
+                parent.terminate()
+            else:
+                parent.kill()
+    return True
 
 
 def command_runner(
     command,  # type: Union[str, List[str]]
     valid_exit_codes=None,  # type: Optional[List[int]]
-    timeout=1800,  # type: Optional[int]
+    timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
-    encoding=None,  # type: str
+    encoding=None,  # type: Optional[str]
     stdout=None,  # type: Union[int, str]
     stderr=None,  # type: Union[int, str]
     windows_no_window=False,  # type: bool
+    live_output=False,  # type: bool
+    method="monitor",  # type: str
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -110,11 +208,16 @@ def command_runner(
 
     Accepts all of subprocess.popen arguments
 
-    Whenever we can, we need to avoid shell=True in order to preseve better security
+    Whenever we can, we need to avoid shell=True in order to preserve better security
+    Avoiding shell=True involves passing absolute paths to executables since we don't have shell PATH environment
 
-    When no stdout option is given, we'll get output into the returned tuple
-    When stdout = PIPE or subprocess.PIPE, output is also displayed on the fly on stdout
+    When no stdout option is given, we'll get output into the returned (exit_code, output) tuple
     When stdout = filename or stderr = filename, we'll write output to the given file
+
+    live_output will poll the process for output and show it on screen (output may be non reliable, don't use it if
+    your program depends on the commands' stdout output)
+
+    windows_no_window will disable visible window (MS Windows platform only)
 
     Returns a tuple (exit_code, output)
     """
@@ -146,23 +249,24 @@ def command_runner(
         # triggers an error on Unix
         # pylint: disable=E1101
         creationflags = creationflags | subprocess.CREATE_NO_WINDOW
+    close_fds = kwargs.pop("close_fds", "posix" in sys.builtin_module_names)
+
+    # Default buffer size. line buffer (1) is deprecated in Python 3.7+
+    bufsize = kwargs.pop("bufsize", 16384)
 
     # Decide whether we write to output variable only (stdout=None), to output variable and stdout (stdout=PIPE)
     # or to output variable and to file (stdout='path/to/file')
     if stdout is None:
-        _stdout = subprocess.PIPE
+        _stdout = PIPE
         stdout_to_file = False
-        live_output = False
     elif isinstance(stdout, str):
         # We will send anything to file
         _stdout = open(stdout, "wb")
         stdout_to_file = True
-        live_output = False
     else:
         # We will send anything to given stdout pipe
         _stdout = stdout
         stdout_to_file = False
-        live_output = True
 
     # The only situation where we don't add stderr to stdout is if a specific target file was given
     if isinstance(stderr, str):
@@ -172,38 +276,50 @@ def command_runner(
         _stderr = subprocess.STDOUT
         stderr_to_file = False
 
-    @thread_with_result_queue
-    def _pipe_read(pipe, read_timeout, encoding, errors):
-        # type: (subprocess.PIPE, Union[int, float], str, str) -> str
+    def to_encoding(
+        process_output,  # type: Union[str, bytes]
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # type: (...) -> str
         """
-        Read pipe will read from subprocess.PIPE for at most 1 second
+        Convert bytes output to string and handles conversion errors
         """
-        pipe_output = ""
-        begin_time = datetime.now()
-        try:
-            while True:
-                current_output = pipe.readline()
-                # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-                if isinstance(current_output, bytes):
-                    try:
-                        current_output = current_output.decode(encoding, errors=errors)
-                    except TypeError:
-                        # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                        current_output = current_output.decode(
-                            encoding, errors="ignore"
-                        )
-                pipe_output += current_output
-                if live_output:
-                    sys.stdout.write(current_output)
-                if (
-                    len(current_output) <= 0
-                    or (datetime.now() - begin_time).total_seconds() > read_timeout
-                ):
-                    break
-        # Pipe may not have readline() anymore when process gets killed
-        except AttributeError:
-            pass
-        return pipe_output
+        # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+        if isinstance(process_output, bytes):
+            try:
+                process_output = process_output.decode(encoding, errors=errors)
+            except TypeError:
+                try:
+                    # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                    process_output = process_output.decode(encoding, errors="ignore")
+                except (ValueError, TypeError):
+                    # What happens when str cannot be concatenated
+                    logger.debug("Output cannot be captured {}".format(process_output))
+        return process_output
+
+    def _read_pipe(
+        stream,  # type: io.StringIO
+        output_queue,  # type: queue.Queue
+    ):
+        # type: (...) -> None
+        """
+        will read from subprocess.PIPE
+        Must be threaded since readline() might be blocking on Windows GUI apps
+
+        Partly based on https://stackoverflow.com/a/4896288/2635443
+        """
+
+        # WARNING: Depending on the stream type (binary or text), the sentinel character
+        # needs to be of the same type, or the iterator won't have an end
+
+        # We also need to check that stream has readline, in case we're writing to files instead of PIPE
+        if hasattr(stream, "readline"):
+            sentinel_char = "" if hasattr(stream, "encoding") else b""
+            for line in iter(stream.readline, sentinel_char):
+                output_queue.put(line)
+            output_queue.put(None)
+            stream.close()
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -213,66 +329,146 @@ def command_runner(
     ):
         # type: (...) -> Tuple[Optional[int], str]
         """
+        Process stdout/stderr output polling is only used in live output mode
+        since it takes more resources than using communicate()
+
         Reads from process output pipe until:
         - Timeout is reached, in which case we'll terminate the process
         - Process ends by itself
 
         Returns an encoded string of the pipe output
         """
-        output = ""
+
         begin_time = datetime.now()
-        timeout_reached = False
-        while process.poll() is None:
-            child = _pipe_read(
-                process.stdout, read_timeout=1, encoding=encoding, errors=errors
-            )
-            try:
-                output += child.result_queue.get(timeout=1)
-            except Queue.Empty:
-                pass
-            except ValueError:
-                # What happens when str cannot be concatenated
-                pass
-            if timeout:
-                if (datetime.now() - begin_time).total_seconds() > timeout:
-                    # Try to terminate nicely before killing the process
-                    process.terminate()
-                    # Let the process terminate itself before trying to kill it not nicely
-                    # Under windows, terminate() and kill() are equivalent
-                    sleep(0.5)
-                    if process.poll() is None:
-                        process.kill()
-                    timeout_reached = True
+        output = ""
+        output_queue = queue.Queue()
 
-        # Get remaining output from process after a grace period
-        sleep(0.5)
+        def __check_timeout(
+            begin_time,  # type: datetime.timestamp
+            timeout,  # type: int
+        ):
+            # type: (...) -> None
+            """
+            Simple subfunction to check whether timeout is reached
+            Since we check this alot, we put it into a function
+            """
 
-        exit_code = process.poll()
-        if timeout:
-            # Let's wait a second more so we may get the remaining queue content after process is to be ended
-            final_read_timeout = max(
-                1, timeout - (datetime.now() - begin_time).total_seconds(), 1
-            )
-        else:
-            final_read_timeout = 1
-        child = _pipe_read(
-            process.stdout,
-            read_timeout=final_read_timeout,
-            encoding=encoding,
-            errors=errors,
-        )
+            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                raise TimeoutExpired(process, timeout, output)
+
         try:
-            output += child.result_queue.get(timeout=final_read_timeout)
-        except Queue.Empty:
-            pass
-        except ValueError:
-            # What happens when str cannot be concatenated
-            pass
-        if timeout_reached:
-            raise TimeoutExpired(process, timeout)
-        return exit_code, output
+            read_thread = threading.Thread(
+                target=_read_pipe, args=(process.stdout, output_queue)
+            )
+            read_thread.daemon = True  # thread dies with the program
+            read_thread.start()
+
+            while True:
+                try:
+                    line = output_queue.get(timeout=MIN_RESOLUTION)
+                except queue.Empty:
+                    __check_timeout(begin_time, timeout)
+                else:
+                    if line is None:
+                        break
+                    else:
+                        line = to_encoding(line, encoding, errors)
+                        if live_output:
+                            sys.stdout.write(line)
+                        output += line
+                    __check_timeout(begin_time, timeout)
+
+            # Make sure we wait for the process to terminate, even after
+            # output_queue has finished sending data, so we catch the exit code
+            while process.poll() is None:
+                __check_timeout(begin_time, timeout)
+            exit_code = process.poll()
+            return exit_code, output
+
+        except KeyboardInterrupt:
+            raise KbdInterruptGetOutput(output)
+
+    def _timeout_check_thread(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        timeout,  # type: int
+        timeout_dict,  # type: dict
+    ):
+        # type: (...) -> None
+
+        """
+        Since elder python versions don't have timeout, we need to manually check the timeout for a process
+        """
+
+        begin_time = datetime.now()
+        while True:
+            if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                timeout_dict["is_timeout"] = True
+                break
+            if process.poll() is not None:
+                break
+            sleep(MIN_RESOLUTION)
+
+    def _monitor_process(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        timeout,  # type: int
+        encoding,  # type: str
+        errors,  # type: str
+    ):
+        # type: (...) -> Tuple[Optional[int], str]
+        """
+        Create a thread in order to enforce timeout
+        Get stdout output and return it
+        """
+
+        # Let's create a mutable object since it will be shared with a thread
+        timeout_dict = {"is_timeout": False}
+
+        thread = threading.Thread(
+            target=_timeout_check_thread,
+            args=(process, timeout, timeout_dict),
+        )
+        thread.setDaemon(True)
+        thread.start()
+
+        process_output = None
+        stdout = None
+
+        try:
+            # Don't use process.wait() since it may deadlock on old Python versions
+            # Also it won't allow communicate() to get incomplete output on timeouts
+            while process.poll() is None:
+                sleep(MIN_RESOLUTION)
+                if timeout_dict["is_timeout"]:
+                    break
+
+                # We still need to use process.communicate() in this loop so we don't get stuck
+                # with poll() is not None even after process is finished
+                try:
+                    stdout, _ = process.communicate()
+                # ValueError is raised on closed IO file
+                except (TimeoutExpired, ValueError):
+                    pass
+
+            exit_code = process.poll()
+            try:
+                stdout, _ = process.communicate()
+            except (TimeoutExpired, ValueError):
+                pass
+            process_output = to_encoding(stdout, encoding, errors)
+
+            if timeout_dict["is_timeout"]:
+                raise TimeoutExpired(process, timeout, process_output)
+
+            return exit_code, process_output
+        except KeyboardInterrupt:
+            raise KbdInterruptGetOutput(process_output)
 
     try:
+        # Finally, we won't use encoding & errors arguments for Popen
+        # since it would defeat the idea of binary pipe reading in live mode
+
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
         # Python >= 3.6 has encoding & error arguments
         # universal_newlines=True makes netstat command fail under windows
@@ -290,6 +486,8 @@ def command_runner(
                 encoding=encoding,
                 errors=errors,
                 creationflags=creationflags,
+                bufsize=bufsize,  # 1 = line buffered
+                close_fds=close_fds,
                 **kwargs
             )
         else:
@@ -300,18 +498,25 @@ def command_runner(
                 shell=shell,
                 universal_newlines=universal_newlines,
                 creationflags=creationflags,
+                bufsize=bufsize,
+                close_fds=close_fds,
                 **kwargs
             )
 
         try:
-            exit_code, output = _poll_process(process, timeout, encoding, errors)
-        except KeyboardInterrupt:
+            if method == "poller" or live_output:
+                exit_code, output = _poll_process(process, timeout, encoding, errors)
+            else:
+                exit_code, output = _monitor_process(process, timeout, encoding, errors)
+        except KbdInterruptGetOutput as exc:
             exit_code = -252
-            output = "KeyboardInterrupted"
+            output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
-                process.kill()
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
             except AttributeError:
                 pass
+            if stdout_to_file:
+                _stdout.write(output.encode(encoding, errors=errors))
 
         logger.debug(
             'Command "{}" returned with exit code "{}". Command output was:'.format(
@@ -339,19 +544,24 @@ def command_runner(
     except FileNotFoundError as exc:
         logger.error('Command "{}" failed, file not found: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()
-    # OSError can also catch FileNotFoundErrors
+    # On python 2.7, OSError is also raised when file is not found (no FileNotFoundError)
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
         logger.error('Command "{}" failed because of OS: {}'.format(command, exc))
         exit_code, output = -253, exc.__str__()
-    except TimeoutExpired:
-        message = 'Timeout {} seconds expired for command "{}" execution.'.format(
-            timeout, command
+    except TimeoutExpired as exc:
+        message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
+            timeout, command, exc.output
         )
         logger.error(message)
         if stdout_to_file:
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = -254, "Timeout of {} seconds expired.".format(timeout)
+        exit_code, output = (
+            -254,
+            'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
+                timeout, command, exc.output
+            ),
+        )
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
@@ -373,7 +583,7 @@ def command_runner(
 
 
 def deferred_command(command, defer_time=300):
-    # type: (str, int) -> NoReturn
+    # type: (str, int) -> None
     """
     This is basically an ugly hack to launch commands which are detached from parent process
     Especially useful to launch an auto update/deletion of a running executable after a given amount of

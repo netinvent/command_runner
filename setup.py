@@ -4,11 +4,11 @@
 # This file is part of command_runner package
 
 
-__intname__ = 'command_runner.setup'
-__author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2021 Orsiris de Jong'
-__licence__ = 'BSD 3 Clause'
-__build__ = '2021031501'
+__intname__ = "command_runner.setup"
+__author__ = "Orsiris de Jong"
+__copyright__ = "Copyright (C) 2021 Orsiris de Jong"
+__licence__ = "BSD 3 Clause"
+__build__ = "2021031501"
 
 import sys
 import os
@@ -20,13 +20,16 @@ import setuptools
 def _read_file(filename):
     here = os.path.abspath(os.path.dirname(__file__))
     if sys.version_info[0] > 2:
-        with open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+        with open(os.path.join(here, filename), "r", encoding="utf-8") as file_handle:
             return file_handle.read()
     else:
         # With python 2.7, open has no encoding parameter, resulting in TypeError
         # Fix with io.open (slow but works)
         from io import open as io_open
-        with io_open(os.path.join(here, filename), 'r', encoding='utf-8') as file_handle:
+
+        with io_open(
+            os.path.join(here, filename), "r", encoding="utf-8"
+        ) as file_handle:
             return file_handle.read()
 
 
@@ -38,9 +41,11 @@ def get_metadata(package_file):
     _metadata = {}
 
     for line in _read_file(package_file).splitlines():
-        if line.startswith('__version__') or line.startswith('__description__'):
-            delim = '='
-            _metadata[line.split(delim)[0].strip().strip('__')] = line.split(delim)[1].strip().strip('\'"')
+        if line.startswith("__version__") or line.startswith("__description__"):
+            delim = "="
+            _metadata[line.split(delim)[0].strip().strip("__")] = (
+                line.split(delim)[1].strip().strip("'\"")
+            )
     return _metadata
 
 
@@ -53,29 +58,31 @@ def parse_requirements(filename):
         requirements_txt = _read_file(filename)
         install_requires = [
             str(requirement)
-            for requirement
-            in pkg_resources.parse_requirements(requirements_txt)
+            for requirement in pkg_resources.parse_requirements(requirements_txt)
         ]
         return install_requires
     except OSError:
-        print('WARNING: No requirements.txt file found as "{}". Please check path or create an empty one'
-              .format(filename))
+        print(
+            'WARNING: No requirements.txt file found as "{}". Please check path or create an empty one'.format(
+                filename
+            )
+        )
 
 
-PACKAGE_NAME = 'command_runner'
+PACKAGE_NAME = "command_runner"
 package_path = os.path.abspath(PACKAGE_NAME)
-package_file = os.path.join(package_path, '__init__.py')
+package_file = os.path.join(package_path, "__init__.py")
 metadata = get_metadata(package_file)
-requirements = parse_requirements(os.path.join(package_path, 'requirements.txt'))
-long_description = _read_file('README.md')
+requirements = parse_requirements(os.path.join(package_path, "requirements.txt"))
+long_description = _read_file("README.md")
 
 setuptools.setup(
     name=PACKAGE_NAME,
     # We may use find_packages in order to not specify each package manually
     # packages = ['command_runner'],
     packages=setuptools.find_packages(),
-    version=metadata['version'],
-    # install_requires=requirements,
+    version=metadata["version"],
+    install_requires=requirements,
     classifiers=[
         # command_runner is mature
         "Development Status :: 5 - Production/Stable",
@@ -96,13 +103,23 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "License :: OSI Approved :: BSD License",
     ],
-    description='Platform agnostic command and shell execution tool, also allows UAC/sudo privilege elevation',
-    license='BSD',
-    author='NetInvent - Orsiris de Jong',
-    author_email='contact@netinvent.fr',
-    url='https://github.com/netinvent/command_runner',
-    keywords=['shell', 'execution', 'subprocess', 'check_output', 'wrapper', 'uac', 'sudo', 'elevate', 'privilege'],
+    description="Platform agnostic command and shell execution tool, also allows UAC/sudo privilege elevation",
+    license="BSD",
+    author="NetInvent - Orsiris de Jong",
+    author_email="contact@netinvent.fr",
+    url="https://github.com/netinvent/command_runner",
+    keywords=[
+        "shell",
+        "execution",
+        "subprocess",
+        "check_output",
+        "wrapper",
+        "uac",
+        "sudo",
+        "elevate",
+        "privilege",
+    ],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    python_requires='>=2.7',
+    python_requires=">=2.7",
 )
