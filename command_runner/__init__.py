@@ -148,6 +148,18 @@ def kill_childs_mod(
             sig = signal.SIGTERM
     ### END COMMAND_RUNNER MOD
 
+    def _process_killer(process, sig, soft_kill):
+        if sig:
+            try:
+                process.send_signal(sig)
+            except psutil.NoSuchProcess:
+                pass
+        else:
+            if soft_kill:
+                process.terminate()
+            else:
+                process.kill()
+
     try:
         parent = psutil.Process(pid if pid is not None else os.getpid())
     except psutil.NoSuchProcess:
@@ -157,28 +169,10 @@ def kill_childs_mod(
         return False
 
     for child in parent.children(recursive=True):
-        if sig:
-            try:
-                child.send_signal(sig)
-            except psutil.NoSuchProcess:
-                pass
-        else:
-            if soft_kill:
-                child.terminate()
-            else:
-                child.kill()
+        _process_killer(child, sig, soft_kill)
 
     if itself:
-        if sig:
-            try:
-                parent.send_signal(sig)
-            except psutil.NoSuchProcess:
-                pass
-        else:
-            if soft_kill:
-                parent.terminate()
-            else:
-                parent.kill()
+        _process_killer(parent, sig, soft_kill)
     return True
 
 
