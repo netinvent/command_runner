@@ -44,8 +44,11 @@ def test_timeout():
     """
     Test command_runner with a timeout
     """
+    begin_time = datetime.now()
     exit_code, output = command_runner(PING_CMD, timeout=1)
     print(output)
+    end_time = datetime.now()
+    assert (end_time - begin_time).total_seconds() < 2, 'It took more than 2 seconds for a timeout=1 command to finish'
     assert exit_code == -254, 'Exit code should be -254 on timeout'
     assert 'Timeout' in output, 'Output should have timeout'
 
@@ -141,16 +144,14 @@ def test_read_file():
     with open(test_filename, 'r') as file:
         file_content = file.read()
 
-    for live_output in [True, False]:
-        for round in range(0, 2500):
-            print('Comparaison round {} with live_output='.format(round, live_output))
-            if os.name == 'nt':
-                exit_code, output = command_runner('type {}'.format(test_filename), shell=True, live_output=live_output)
-                output = output.replace('\r\n', '\n')
-            else:
-                exit_code, output = command_runner('cat {}'.format(test_filename), shell=True, live_output=live_output)
+    for round in range(0, 2500):
+        print('Comparaison round {}'.format(round))
+        if os.name == 'nt':
+            exit_code, output = command_runner('type {}'.format(test_filename), shell=True)
+            output = output.replace('\r\n', '\n')
+        else:
+            exit_code, output = command_runner('cat {}'.format(test_filename), shell=True)
 
-            assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
-                                                                                                 output)
-
-            assert file_content == output, 'Round {} File content and output are not identical'.format(round)
+        assert exit_code == 0, 'Did not succeed to read {}, exit_code: {}, output: {}'.format(test_filename, exit_code,
+                                                                                             output)
+        assert file_content == output, 'Round {} File content and output are not identical'.format(round)
