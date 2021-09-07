@@ -135,8 +135,18 @@ def kill_childs_mod(
             "No signal module present. Using direct psutil kill API which might have race conditions when PID is reused too fast."
         )
     else:
-        # MS Windows does not support SIGKILL, only SIGTERM, CTRL_C_EVENT or CTRL_BREAK_EVENT signals
-        sig = signal.SIGTERM if (soft_kill or os.name == 'nt') else signal.SIGKILL
+        """
+        Extract from Python3 doc
+        On Windows, signal() can only be called with SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, SIGTERM, or SIGBREAK.
+        A ValueError will be raised in any other case. Note that not all systems define the same set of signal names;
+        an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
+        """
+        if soft_kill or os.name == 'nt':
+            sig = signal.SIGTERM
+        elif hasattr(signal, 'SIGKILL'):
+            sig = signal.SIGKILL
+        else:
+            sig = signal.SIGQUIT
     ### END COMMAND_RUNNER MOD
 
     try:
