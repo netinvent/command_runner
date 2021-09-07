@@ -590,18 +590,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-"""
-cmd = r'type C:\GIT\command_runner\README.md'
-
-# Now lets run the above code a couple of times and compare output of each run with previous$
-previous_output = None
-for i in range(0, 20000):
-    print('Run {}'.format(i))
-    _, output = command_runner(cmd, shell=True)
-    if previous_output:
-        if output != previous_output:
-            print('Failed on run {}'.format(i))
-            break
-    previous_output = output
-print('done')
-"""
