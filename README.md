@@ -1,5 +1,5 @@
 # command_runner
-## A python tool for rapid platform agnostic command execution and elevation
+## A python tool for rapid platform agnostic command execution and UAC/sudo elevation
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/netinvent/command_runner.svg)](http://isitmaintained.com/project/netinvent/command_runner "Percentage of issues still open")
@@ -11,9 +11,9 @@
 
 
 command_runner's purpose is to run external commands from python, just like subprocess on which it is based, 
-while solving various problems a developper may face among:
+while solving various problems a developer may face among:
    - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function
-   - System agnostic functionalty, the developper shouldn't carry the burden of Windows & Linux differences
+   - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
 
@@ -33,8 +33,12 @@ It works as wrapper for subprocess.popen and subprocess.check_output that solves
       - Handle encoding even on earlier Python implementations
    - Keep the promise to always return an exit code (so we don't have to deal with exit codes and exception logic at the same time)
    - Keep the promise to always return the command output regardless of the execution state (even with timeouts and keyboard interrupts)
-   - Can show command output on the fly without waiting the end of execution (with live_output=True argument)
+   - Can show command output on the fly without waiting the end of execution (with `live_output=True` argument)
    - Catch all possible exceptions and log them
+
+command_runner also promises to properly kill commands when timeouts are reached, including spawned subprocesses of such commands.
+This specific behavior is achieved via psutil module, which is an optional dependency.
+
 
 
    
@@ -44,7 +48,7 @@ Install with `pip install command_runner`
 
 The following example will work regardless of the host OS and the Python version.
 
-```
+```python
 from command_runner import command_runner
 
 exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8')
@@ -80,7 +84,9 @@ command_runner has an `encoding` argument which defaults to `utf-8` for Unixes a
 Using `cp437` ensures that most `cmd.exe` output is encoded properly, including accents and special characters, on most locale systems.
 Still you can specify your own encoding for other usages, like Powershell where `unicode_escape` is preferred.
 
-```
+```python
+from command_runner import *
+
 command = r'C:\Windows\sysnative\WindowsPowerShell\v1.0\powershell.exe --help'
 exit_code, output = command_runner(command, encoding='unicode_escape')
 ```
@@ -94,7 +100,7 @@ This is helpful when the command is long, and we need to know the output while e
 It is also helpful in order to catch partial command output when timeout is reached or a CTRL+C signal is received.
 Example:
 
-```
+```python
 from command_runner import command_runner
 
 exit_code, output = command_runner('ping 127.0.0.1', shell=True, live_output=True)
@@ -108,7 +114,9 @@ command_runner can redirect stdout and stderr to files.
 
 Example (of course this also works with unix paths):
 
-```bash
+```python
+from command_runner import *
+
 exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error', shell=True)
 ```
 
@@ -119,22 +127,24 @@ This default setting ensures commands will not block the main script execution.
 Feel free to lower / higher that setting with `timeout` argument.
 Note that a command_runner kills the whole process tree that the command may have generated, even under Windows.
 
-```
-exit_code, command_runner('ping 127.0.0.1', timeout=30)
+```python
+from command_runner import *
+
+exit_code, output = command_runner('ping 127.0.0.1', timeout=30)
 ```
 
 ### Remarks on processes
 
 Using `shell=True` will spawn a shell which will spawn the desired child process.
-Be aware that under windows, no direct process tree is available.
-We fixed this by using `taskkill /F /T /PID parentPID` in order to kill the process tree.
+Be aware that under MS Windows, no direct process tree is available.
+We fixed this by walking processes during runtime. The drawback is that orphaned processes cannot be identified this way.
 
 
 #### Disabling logs
 
 Whenever you want another loglevel for command_runner, you might do with the following statement in your code
 
-```
+```python
 import logging
 import command_runner
 
@@ -182,12 +192,12 @@ It also uses the following standard arguments:
 ## UAC Elevation / sudo elevation
 
 command_runner package allowing privilege elevation.
-Becomming an admin is fairly easy with command_runner.elevate
+Becoming an admin is fairly easy with command_runner.elevate
 You only have to import the elevate module, and then launch your main function with the elevate function.
 
 ### elevation In a nutshell
 
-```
+```python
 from command_runner.elevate import elevate
 
 def main():
@@ -208,7 +218,7 @@ elevate function handles arguments (positional and keyword arguments).
 The elevate module has a nifty is_admin() function that returns a boolean according to your current root/administrator privileges.
 Usage:
 
-```
+```python
 from command_runner.elevate import is_admin
 
 print('Am I an admin ? %s' % is_admin())
