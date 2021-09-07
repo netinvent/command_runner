@@ -110,6 +110,9 @@ def test_file_output():
     assert os.path.isfile(stderr_filename), 'stderr log file does not exist'
     assert exit_code == -254, 'Exit code should be -254 for timeouts'
     assert 'Timeout' in output, 'Output should have timeout'
+
+    # arbitrary time to make sure file handle was closed
+    sleep(3)
     os.remove(stdout_filename)
     os.remove(stderr_filename)
 
