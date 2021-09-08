@@ -437,8 +437,10 @@ def command_runner(
         Get stdout output and return it
         """
 
-        # Shared mutable objects have proven to have race conditions with PyPy 3.7
-        # Let's create a queue to get the timeout thread response
+        # Shared mutable objects have proven to have race conditions with PyPy 3.7 (mutable object
+        # is changed in thread, but outer monitor function has still old mutable object state)
+        # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
+        # Let's create a queue to get the timeout thread response on a deterministic way
         timeout_queue = queue.Queue()
         is_timeout = False
 
@@ -460,7 +462,7 @@ def command_runner(
                 try:
                     is_timeout = timeout_queue.get_nowait()
                 except queue.Empty:
-                    pass
+                    print('timeout monitor queue empty')
                 else:
                     print('timeout monitor', is_timeout)
                     break
@@ -474,6 +476,7 @@ def command_runner(
                     pass
 
             exit_code = process.poll()
+            print('got exit code', exit_code)
             try:
                 stdout, _ = process.communicate()
             except (TimeoutExpired, ValueError):
@@ -482,11 +485,11 @@ def command_runner(
             try:
                 is_timeout = timeout_queue.get_nowait()
             except queue.Empty:
-                pass
+                print('timeout monitor2 queue empty')
             else:
                 print('timeout monitor2', is_timeout)
                 raise TimeoutExpired(process, timeout, process_output)
-
+            print('now returning exit code', exit_code)
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
