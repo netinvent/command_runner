@@ -484,7 +484,7 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-            sleep(2)
+            sleep(1.5)
             try:
                 is_timeout = timeout_queue.get_nowait()
             except queue.Empty:
