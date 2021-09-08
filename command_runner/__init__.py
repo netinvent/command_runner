@@ -419,6 +419,7 @@ def command_runner(
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 timeout_dict["is_timeout"] = True
+                print('timeout thread', timeout_dict["is_timeout"])
                 break
             if process.poll() is not None:
                 break
@@ -438,6 +439,7 @@ def command_runner(
 
         # Let's create a mutable object since it will be shared with a thread
         timeout_dict = {"is_timeout": False}
+        print('timeout main', timeout_dict["is_timeout"])
 
         thread = threading.Thread(
             target=_timeout_check_thread,
@@ -455,6 +457,7 @@ def command_runner(
             while process.poll() is None:
                 sleep(MIN_RESOLUTION)
                 if timeout_dict["is_timeout"]:
+                    print('timeout monitor', timeout_dict["is_timeout"])
                     break
 
                 # We still need to use process.communicate() in this loop so we don't get stuck
@@ -471,7 +474,7 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-
+            print('timeout monitor2', timeout_dict["is_timeout"])
             if timeout_dict["is_timeout"]:
                 raise TimeoutExpired(process, timeout, process_output)
 
