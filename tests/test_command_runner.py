@@ -72,7 +72,7 @@ def test_timeout_with_subtree_killing():
     Launch a subtree of long commands and see if timeout actually kills them in time
     """
     if os.name != 'nt':
-        cmd = 'echo "test" && sleep 30 && echo "done"'
+        cmd = 'echo "test" && sleep 5 && echo "done"'
     else:
         cmd = 'echo test && {} && echo done'.format(PING_CMD)
 
