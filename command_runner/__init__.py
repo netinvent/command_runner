@@ -394,6 +394,9 @@ def command_runner(
             # output_queue has finished sending data, so we catch the exit code
             while process.poll() is None:
                 __check_timeout(begin_time, timeout)
+            # Additional timeout check to make sure we don't return an exit code from processes
+            # that were killed because of timeout
+            __check_timeout(begin_time, timeout)
             exit_code = process.poll()
             return exit_code, output
 
