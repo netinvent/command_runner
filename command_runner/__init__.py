@@ -406,20 +406,19 @@ def command_runner(
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
+        timeout_dict,  # type: dict
     ):
         # type: (...) -> None
+
         """
         Since elder python versions don't have timeout, we need to manually check the timeout for a process
         """
-
-        nonlocal is_timeout
 
         begin_time = datetime.now()
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                is_timeout = True
-                print('is_timeout thread', is_timeout)
+                timeout_dict["is_timeout"] = True
                 break
             if process.poll() is not None:
                 break
@@ -437,13 +436,12 @@ def command_runner(
         Get stdout output and return it
         """
 
-        # Let's use a nonlocal variable since it will be shared with a threaded function
-        nonlocal is_timeout
-        is_timeout = False
+        # Let's create a mutable object since it will be shared with a thread
+        timeout_dict = {"is_timeout": False}
 
         thread = threading.Thread(
             target=_timeout_check_thread,
-            args=(process, timeout),
+            args=(process, timeout, timeout_dict),
         )
         thread.setDaemon(True)
         thread.start()
@@ -456,7 +454,7 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(MIN_RESOLUTION)
-                if is_timeout:
+                if timeout_dict["is_timeout"]:
                     break
 
                 # We still need to use process.communicate() in this loop so we don't get stuck
@@ -473,8 +471,8 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-            print('is_timeout monitor', is_timeout)
-            if is_timeout:
+
+            if timeout_dict["is_timeout"]:
                 raise TimeoutExpired(process, timeout, process_output)
 
             return exit_code, process_output
@@ -523,8 +521,6 @@ def command_runner(
             if method == "poller" or live_output:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
-                is_timeout = False
-                print('is_timeout main', is_timeout)
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
