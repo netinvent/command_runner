@@ -423,7 +423,9 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
+            print('i am alive before')
             sleep(MIN_RESOLUTION)
+            print('i am alive after')
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -482,6 +484,7 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
+            sleep(2)
             try:
                 is_timeout = timeout_queue.get_nowait()
             except queue.Empty:
