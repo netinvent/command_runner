@@ -406,7 +406,7 @@ def command_runner(
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
-        timeout_dict,  # type: dict
+        timeout_queue,  # type: queue.Queue
     ):
         # type: (...) -> None
 
@@ -418,8 +418,8 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                timeout_dict["is_timeout"] = True
-                print('timeout thread', timeout_dict["is_timeout"])
+                timeout_queue.put(True)
+                print('timeout thread', True)  # WIP
                 break
             if process.poll() is not None:
                 break
@@ -437,13 +437,14 @@ def command_runner(
         Get stdout output and return it
         """
 
-        # Let's create a mutable object since it will be shared with a thread
-        timeout_dict = {"is_timeout": False}
-        print('timeout main', timeout_dict["is_timeout"])
+        # Shared mutable objects have proven to have race conditions with PyPy 3.7
+        # Let's create a queue to get the timeout thread response
+        timeout_queue = queue.Queue()
+        is_timeout = False
 
         thread = threading.Thread(
             target=_timeout_check_thread,
-            args=(process, timeout, timeout_dict),
+            args=(process, timeout, timeout_queue),
         )
         thread.setDaemon(True)
         thread.start()
@@ -456,8 +457,12 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(MIN_RESOLUTION)
-                if timeout_dict["is_timeout"]:
-                    print('timeout monitor', timeout_dict["is_timeout"])
+                try:
+                    is_timeout = timeout_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                else:
+                    print('timeout monitor', is_timeout)
                     break
 
                 # We still need to use process.communicate() in this loop so we don't get stuck
@@ -474,8 +479,12 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-            print('timeout monitor2', timeout_dict["is_timeout"])
-            if timeout_dict["is_timeout"]:
+            try:
+                is_timeout = timeout_queue.get_nowait()
+            except queue.Empty:
+                pass
+            else:
+                print('timeout monitor2', is_timeout)
                 raise TimeoutExpired(process, timeout, process_output)
 
             return exit_code, process_output
