@@ -38,4 +38,4 @@ jobs:
       if: ${{ matrix.python-version == '3.9' }}
       run: |
         pip install black
-        python -m black command_runner
+        python -m black --check command_runner
