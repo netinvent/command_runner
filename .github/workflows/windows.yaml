@@ -33,6 +33,6 @@ jobs:
     - name: Generate Report
       run: |
         pip install coverage
-        python -m coverage run -m pytest -s tests
+        python -m coverage run -m pytest -vs tests
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v1

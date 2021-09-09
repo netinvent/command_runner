@@ -18,8 +18,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.2.0"
-__build__ = "2021090701"
+__version__ = "1.2.1"
+__build__ = "2021090901"
 
 import io
 import os
@@ -394,6 +394,9 @@ def command_runner(
             # output_queue has finished sending data, so we catch the exit code
             while process.poll() is None:
                 __check_timeout(begin_time, timeout)
+            # Additional timeout check to make sure we don't return an exit code from processes
+            # that were killed because of timeout
+            __check_timeout(begin_time, timeout)
             exit_code = process.poll()
             return exit_code, output
 
@@ -403,7 +406,7 @@ def command_runner(
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
-        timeout_dict,  # type: dict
+        timeout_queue,  # type: queue.Queue
     ):
         # type: (...) -> None
 
@@ -415,7 +418,7 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                timeout_dict["is_timeout"] = True
+                timeout_queue.put(True)
                 break
             if process.poll() is not None:
                 break
@@ -433,12 +436,16 @@ def command_runner(
         Get stdout output and return it
         """
 
-        # Let's create a mutable object since it will be shared with a thread
-        timeout_dict = {"is_timeout": False}
+        # Shared mutable objects have proven to have race conditions with PyPy 3.7 (mutable object
+        # is changed in thread, but outer monitor function has still old mutable object state)
+        # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
+        # Let's create a queue to get the timeout thread response on a deterministic way
+        timeout_queue = queue.Queue()
+        is_timeout = False
 
         thread = threading.Thread(
             target=_timeout_check_thread,
-            args=(process, timeout, timeout_dict),
+            args=(process, timeout, timeout_queue),
         )
         thread.setDaemon(True)
         thread.start()
@@ -451,9 +458,12 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(MIN_RESOLUTION)
-                if timeout_dict["is_timeout"]:
+                try:
+                    is_timeout = timeout_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                else:
                     break
-
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
                 try:
@@ -461,17 +471,26 @@ def command_runner(
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
-
             exit_code = process.poll()
+
             try:
                 stdout, _ = process.communicate()
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
 
-            if timeout_dict["is_timeout"]:
-                raise TimeoutExpired(process, timeout, process_output)
+            # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
+            # the thread could write to it, failing to register a timeout.
+            # This workaround prevents reading the queue while the thread is still alive
+            while thread.is_alive():
+                sleep(MIN_RESOLUTION)
 
+            try:
+                is_timeout = timeout_queue.get_nowait()
+            except queue.Empty:
+                pass
+            if is_timeout:
+                raise TimeoutExpired(process, timeout, process_output)
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
