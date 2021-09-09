@@ -423,9 +423,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            print('i am alive before')
             sleep(MIN_RESOLUTION)
-            print('i am alive after')
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -468,7 +466,7 @@ def command_runner(
                 else:
                     print('timeout monitor', is_timeout)
                     break
-
+                print('alive', thread.is_alive())
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
                 try:
@@ -476,7 +474,7 @@ def command_runner(
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
-
+            print('alive', thread.is_alive())
             exit_code = process.poll()
             print('got exit code', exit_code)
             try:
@@ -484,7 +482,9 @@ def command_runner(
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-            sleep(1.5)
+            if thread.is_alive():
+                sleep(1.5)
+            print('alive', thread.is_alive())
             try:
                 is_timeout = timeout_queue.get_nowait()
             except queue.Empty:
