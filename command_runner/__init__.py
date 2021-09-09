@@ -419,7 +419,6 @@ def command_runner(
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 timeout_queue.put(True)
-                print('timeout thread', True)  # WIP
                 break
             if process.poll() is not None:
                 break
@@ -462,11 +461,9 @@ def command_runner(
                 try:
                     is_timeout = timeout_queue.get_nowait()
                 except queue.Empty:
-                    print('timeout monitor queue empty')
+                    pass
                 else:
-                    print('timeout monitor', is_timeout)
                     break
-                print('alive', thread.is_alive())
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
                 try:
@@ -474,25 +471,26 @@ def command_runner(
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
-            print('alive', thread.is_alive())
             exit_code = process.poll()
-            print('got exit code', exit_code)
+
             try:
                 stdout, _ = process.communicate()
             except (TimeoutExpired, ValueError):
                 pass
             process_output = to_encoding(stdout, encoding, errors)
-            if thread.is_alive():
-                sleep(1.5)
-            print('alive', thread.is_alive())
+
+            # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
+            # the thread could write to it, failing to register a timeout.
+            # This workaround prevents reading the queue while the thread is still alive
+            while thread.is_alive():
+                sleep(MIN_RESOLUTION)
+
             try:
                 is_timeout = timeout_queue.get_nowait()
             except queue.Empty:
-                print('timeout monitor2 queue empty')
-            else:
-                print('timeout monitor2', is_timeout)
+                pass
+            if is_timeout:
                 raise TimeoutExpired(process, timeout, process_output)
-            print('now returning exit code', exit_code)
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
