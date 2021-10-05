@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, 'pypy-3.6', 'pypy-3.7']
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, "3.10", 'pypy-3.6', 'pypy-3.7']
 
     steps:
     - uses: actions/checkout@v2
@@ -25,14 +25,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
         if (Test-Path "command_runner/requirements.txt") { pip install -r command_runner/requirements.txt }
-    #- name: Test with pytest
-    #  run: |
-    #    python -m pytest tests
     - name: Generate Report
+      env:
+        RUNNING_ON_GITHUB_ACTIONS: true
       run: |
-        pip install coverage
+        pip install pytest coverage
         python -m coverage run -m pytest -vs tests
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v1
