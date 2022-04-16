@@ -6,9 +6,9 @@
 
 __intname__ = "command_runner.setup"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2021 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2021-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__build__ = "2021031501"
+__build__ = "2022041601"
 
 import sys
 import os
@@ -19,17 +19,21 @@ import setuptools
 
 def _read_file(filename):
     here = os.path.abspath(os.path.dirname(__file__))
-    if sys.version_info[0] > 2:
-        with open(os.path.join(here, filename), "r", encoding="utf-8") as file_handle:
-            return file_handle.read()
-    else:
+    if sys.version_info[0] < 3:
         # With python 2.7, open has no encoding parameter, resulting in TypeError
         # Fix with io.open (slow but works)
         from io import open as io_open
 
-        with io_open(
-            os.path.join(here, filename), "r", encoding="utf-8"
-        ) as file_handle:
+        try:
+            with io_open(
+                os.path.join(here, filename), "r", encoding="utf-8"
+            ) as file_handle:
+                return file_handle.read()
+        except IOError:
+            # Ugly fix for missing requirements.txt file when installing via pip under Python 2
+            return "psutil\n"
+    else:
+        with open(os.path.join(here, filename), "r", encoding="utf-8") as file_handle:
             return file_handle.read()
 
 
