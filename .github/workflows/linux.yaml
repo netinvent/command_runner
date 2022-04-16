@@ -21,6 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m pip install --ugprade setuptools
         if [ -f command_runner/requirements.txt ]; then pip install -r command_runner/requirements.txt; fi
     - name: Generate Report
       env:
