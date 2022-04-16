@@ -16,10 +16,10 @@ Versioning semantics:
 
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2021 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.3.0"
-__build__ = "2021100501"
+__version__ = "1.3.1"
+__build__ = "2022041601"
 
 import io
 import os
