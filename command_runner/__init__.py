@@ -53,7 +53,7 @@ try:
 except ImportError:
     pass
 try:
-    # pylint: disable=E0601: Using variable 'FileNotFoundError' before assignment (used-before-assignment)
+    # pylint: disable=E0601 (used-before-assignment)
     FileNotFoundError
 except NameError:
     # pylint: disable=W0622 (redefined-builtin)
