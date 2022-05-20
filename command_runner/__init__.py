@@ -102,7 +102,6 @@ class KbdInterruptGetOutput(BaseException):
 
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
-MIN_RESOLUTION = 0.05  # Minimal sleep time between polling, reduces CPU usage
 
 
 def kill_childs_mod(
@@ -208,6 +207,7 @@ def command_runner(
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
     method="monitor",  # type: str
+    min_resolution=0.05,  # type: float
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -384,7 +384,7 @@ def command_runner(
 
             while True:
                 try:
-                    line = output_queue.get(timeout=MIN_RESOLUTION)
+                    line = output_queue.get(timeout=min_resolution)
                 except queue.Empty:
                     __check_timeout(begin_time, timeout)
                 else:
@@ -429,7 +429,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            sleep(MIN_RESOLUTION)
+            sleep(min_resolution)
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -464,7 +464,7 @@ def command_runner(
             # Don't use process.wait() since it may deadlock on old Python versions
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
-                sleep(MIN_RESOLUTION)
+                sleep(min_resolution)
                 try:
                     is_timeout = timeout_queue.get_nowait()
                 except queue.Empty:
@@ -492,7 +492,7 @@ def command_runner(
             # the thread could write to it, failing to register a timeout.
             # This workaround prevents reading the queue while the thread is still alive
             while thread.is_alive():
-                sleep(MIN_RESOLUTION)
+                sleep(min_resolution)
 
             try:
                 is_timeout = timeout_queue.get_nowait()
