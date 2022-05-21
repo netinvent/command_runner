@@ -238,6 +238,7 @@ def command_runner(
     method="monitor",  # type: str
     min_resolution=0.05,  # type: float
     stop_on=None,  # type: Callable
+    process_callback=None,  # type Callable
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -647,6 +648,10 @@ def command_runner(
             )
 
         try:
+            # let's return process information if callback was given
+            if callable(process_callback):
+                process_callback(process)
+
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
