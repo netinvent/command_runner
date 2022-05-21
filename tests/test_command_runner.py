@@ -207,13 +207,13 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 1):
+        for round in range(0, 2500):
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
                 output = output.replace('\r\n', '\n')
             else:
-                exit_code, output = command_runner('cat {}'.format(test_filename), shell=True)
+                exit_code, output = command_runner('cat {}'.format(test_filename), shell=True, method=method)
 
             assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(test_filename, method, exit_code,
                                                                                                  output)
