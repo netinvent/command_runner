@@ -231,8 +231,8 @@ def command_runner(
     timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
     encoding=None,  # type: Optional[str]
-    stdout=None,  # type: Optional[Union[int, str]]
-    stderr=None,  # type: Optional[Union[int, str]]
+    stdout=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
+    stderr=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
     method="monitor",  # type: str
@@ -303,28 +303,46 @@ def command_runner(
 
     # Decide whether we write to output variable only (stdout=None), to output variable and stdout (stdout=PIPE)
     # or to output variable and to file (stdout='path/to/file')
-    stdout_to_file = False
     if stdout is None:
         _stdout = PIPE
+        stdout_destination = "pipe"
+    elif callable(stdout):
+        _stdout = PIPE
+        stdout_destination = "callback"
+    elif isinstance(stdout, queue.Queue):
+        _stdout = PIPE
+        stdout_destination = "queue"
     elif isinstance(stdout, str):
         # We will send anything to file
         _stdout = open(stdout, "wb")
-        stdout_to_file = True
+        stdout_destination = "file"
     elif stdout is False:
         _stdout = subprocess.DEVNULL
+        stdout_destination = None
     else:
         # We will send anything to given stdout pipe
         _stdout = stdout
+        stdout_destination = "pipe"
 
     # The only situation where we don't add stderr to stdout is if a specific target file was given
-    stderr_to_file = False
-    if isinstance(stderr, str):
+    if callable(stderr):
+        _stderr = PIPE
+        stderr_destination = "callback"
+    elif isinstance(stderr, queue.Queue):
+        _stderr = PIPE
+        stderr_destination = "queue"
+    elif isinstance(stderr, str):
         _stderr = open(stderr, "wb")
-        stderr_to_file = True
+        stderr_destination = "file"
     elif stderr is False:
         _stderr = subprocess.DEVNULL
+        stderr_destination = None
+    elif stderr is not None:
+        _stderr = stderr
+        stderr_destination = "pipe"
     else:
         _stderr = subprocess.STDOUT
+        stderr_destination = "stdout"
 
     def to_encoding(
         process_output,  # type: Union[str, bytes]
@@ -391,7 +409,16 @@ def command_runner(
 
         begin_time = datetime.now()
         output = ""
-        output_queue = queue.Queue()
+        if stdout_destination == "queue":
+            stdout_queue = stdout
+        else:
+            stdout_queue = queue.Queue()
+
+        if stderr_destination != "stdout":
+            if stderr_destination == "queue":
+                stderr_queue = stderr
+            else:
+                stderr_queue = queue.Queue()
 
         def __check_timeout(
             begin_time,  # type: datetime.timestamp
@@ -412,25 +439,56 @@ def command_runner(
 
         try:
             read_thread = threading.Thread(
-                target=_read_pipe, args=(process.stdout, output_queue)
+                target=_read_pipe, args=(process.stdout, stdout_queue)
             )
             read_thread.daemon = True  # thread dies with the program
             read_thread.start()
 
+            if stderr_destination != "stdout":
+                read_thread = threading.Thread(
+                    target=_read_pipe, args=(process.stderr, stderr_queue)
+                )
+                read_thread.daemon = True  # thread dies with the program
+                read_thread.start()
+
             while True:
-                try:
-                    line = output_queue.get(timeout=min_resolution)
-                except queue.Empty:
-                    __check_timeout(begin_time, timeout)
-                else:
-                    if line is None:
-                        break
+                if stdout_destination != "queue":
+                    try:
+                        line = stdout_queue.get(timeout=min_resolution)
+                    except queue.Empty:
+                        pass
+                        # TODO do we need multiple checks here and below
+                        # __check_timeout(begin_time, timeout)
                     else:
-                        line = to_encoding(line, encoding, errors)
-                        if live_output:
-                            sys.stdout.write(line)
-                        output += line
-                    __check_timeout(begin_time, timeout)
+                        if line is None:
+                            break
+                        else:
+                            line = to_encoding(line, encoding, errors)
+                            if live_output:
+                                if stdout_destination == "callback":
+                                    stdout(line)
+                                else:
+                                    sys.stdout.write(line)
+                            output += line
+                        # TODO__check_timeout(begin_time, timeout)
+
+                if stderr_destination not in ["stdout", "queue"]:
+                    try:
+                        line = stderr_queue.get(timeout=min_resolution)
+                    except queue.Empty:
+                        pass  # TODO Don't check timeout twice since we already do for stdout
+                    else:
+                        if line is None:
+                            break
+                        else:
+                            line = to_encoding(line, encoding, errors)
+                            if live_output:
+                                if stderr_destination == "callback":
+                                    stderr(line)
+                                else:
+                                    sys.stderr.write(line)
+                            output += line
+                __check_timeout(begin_time, timeout)
 
             # Make sure we wait for the process to terminate, even after
             # output_queue has finished sending data, so we catch the exit code
@@ -600,7 +658,7 @@ def command_runner(
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
             except AttributeError:
                 pass
-            if stdout_to_file:
+            if stdout_destination == "file":
                 _stdout.write(output.encode(encoding, errors=errors))
 
         logger.debug(
@@ -639,7 +697,7 @@ def command_runner(
             timeout, command, exc.output
         )
         logger.error(message)
-        if stdout_to_file:
+        if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-254, message)
     except StopOnInterrupt as exc:
@@ -647,7 +705,7 @@ def command_runner(
             command, exc.output
         )
         logger.info(message)
-        if stdout_to_file:
+        if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-251, message)
 
@@ -661,9 +719,9 @@ def command_runner(
         logger.debug("Error:", exc_info=True)
         exit_code, output = -255, exc.__str__()
     finally:
-        if stdout_to_file:
+        if stdout_destination == "file":
             _stdout.close()
-        if stderr_to_file:
+        if stderr_destination == "file":
             _stderr.close()
 
     logger.debug(output)
