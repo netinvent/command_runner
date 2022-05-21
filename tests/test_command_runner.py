@@ -18,11 +18,12 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052101'
+__build__ = '2022052201'
 
 
 import re
 from datetime import datetime
+import psutil
 from command_runner import *
 
 
@@ -52,6 +53,7 @@ else:
     # TODO shlex.split(command, posix=True) test for Linux
 
 ELAPSED_TIME=timestamp(datetime.now())
+PROCESS_ID=None
 
 
 def reset_elapsed_time():
@@ -234,6 +236,18 @@ def test_stop_on_argument():
                                                                                                  output)
         assert re.match(expected_output_regex, output, re.MULTILINE), 'stop_on output is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
+
+
+def test_process_callback():
+    def callback(process_id):
+        global PROCESS_ID
+        PROCESS_ID = process_id
+
+    for method in methods:
+        exit_code, output = command_runner(PING_CMD, method=method, process_callback=callback)
+        assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                 output)
+        assert isinstance(PROCESS_ID, subprocess.Popen), 'callback did not work properly. PROCESS_ID="{}"'.format(PROCESS_ID)
 
 
 def test_deferred_command():
