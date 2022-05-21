@@ -13,6 +13,9 @@ Versioning semantics:
     Patch version: Backwards compatible bug fixes
 
 """
+# python 2.7 compat fixes so all strings are considered unicode
+from __future__ import unicode_literals
+
 
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
@@ -99,6 +102,7 @@ class InterruptGetOutput(BaseException):
     def output(self):
         return self._output
 
+
 class KbdInterruptGetOutput(InterruptGetOutput):
     """
     Make sure we get the current output when KeyboardInterrupt is made
@@ -123,7 +127,6 @@ class StopOnInterrupt(InterruptGetOutput):
     @property
     def output(self):
         return self._output
-
 
 
 logger = getLogger(__intname__)
@@ -640,7 +643,7 @@ def command_runner(
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-254, message)
     except StopOnInterrupt as exc:
-        message = 'Command {} was stopped because stop_on function returned True. Original output was: {}'.format(
+        message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
             command, exc.output
         )
         logger.info(message)
