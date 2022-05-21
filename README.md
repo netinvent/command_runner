@@ -71,6 +71,7 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 In order to keep the promise to always provide an exit_code, some arbitrary exit codes have been added for the case where none is given.
 Those exit codes are:
 
+- -251 : stop_on function returned True
 - -252 : KeyboardInterrupt
 - -253 : FileNotFoundError, OSError, IOError
 - -254 : Timeout
@@ -85,7 +86,7 @@ Using `cp437` ensures that most `cmd.exe` output is encoded properly, including 
 Still you can specify your own encoding for other usages, like Powershell where `unicode_escape` is preferred.
 
 ```python
-from command_runner import *
+from command_runner import command_runner
 
 command = r'C:\Windows\sysnative\WindowsPowerShell\v1.0\powershell.exe --help'
 exit_code, output = command_runner(command, encoding='unicode_escape')
@@ -115,22 +116,37 @@ command_runner can redirect stdout and stderr to files.
 Example (of course this also works with unix paths):
 
 ```python
-from command_runner import *
+from command_runner import command_runner
 
 exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error', shell=True)
 ```
 
 #### Timeouts
 
-**command_runner as a `timeout` argument which defaults to 3600 seconds.**
+**command_runner has a `timeout` argument which defaults to 3600 seconds.**
 This default setting ensures commands will not block the main script execution.
 Feel free to lower / higher that setting with `timeout` argument.
 Note that a command_runner kills the whole process tree that the command may have generated, even under Windows.
 
 ```python
-from command_runner import *
+from command_runner import command_runner
 
 exit_code, output = command_runner('ping 127.0.0.1', timeout=30)
+```
+
+### Stop_on
+
+In some situations, you want a command to be aborted on some external triggers.
+That's where `stop_on` argument comes in handy.
+Just pass a function to `stop_on`, as soon as function result becomes True, execution will halt with exit code -251.
+
+Example:
+```python
+from command_runner import command_runner
+
+def some_function():
+    return True if my_conditions_are_met
+exit_code, output = command_runner('ping 127.0.0.1', stop_on=some_function)
 ```
 
 ### Remarks on processes
@@ -167,6 +183,12 @@ logging.getLogger('command_runner').setLevel(logging.ERROR)
  - Pros: Reads on the fly, allowing interactive commands (is also used with `live_output=True`)
  - Cons: Lightly higher CPU usage
 
+
+#### Time resolution
+
+By default, command_runner checks timeouts and outputs every 0.05 seconds.
+You can increase/decrease this setting via `min_resolution` setting.
+Example: `command_runner(cmd, min_resolution=0.2)`
 
 #### Other arguments
 

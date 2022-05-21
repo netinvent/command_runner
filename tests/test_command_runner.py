@@ -16,12 +16,30 @@ Versioning semantics:
 
 __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2015-2021 Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2021090701'
+__build__ = '2022052101'
 
 
+import re
+from datetime import datetime
 from command_runner import *
+
+
+# Python 2.7 compat where datetime.now() does not have .timestamp() method
+if sys.version_info[0] < 3 or sys.version_info[1] < 4:
+    # python version < 3.3
+    import time
+
+    def timestamp(date):
+        return time.mktime(date.timetuple())
+
+else:
+
+    def timestamp(date):
+        return date.timestamp()
+
+
 
 methods = ['monitor', 'poller']
 
@@ -32,6 +50,17 @@ else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
     # TODO shlex.split(command, posix=True) test for Linux
+
+ELAPSED_TIME=timestamp(datetime.now())
+
+
+def reset_elapsed_time():
+    global ELAPSED_TIME
+    ELAPSED_TIME=timestamp(datetime.now())
+
+
+def get_elapsed_time():
+    return timestamp(datetime.now()) - ELAPSED_TIME
 
 
 def test_standard_ping_with_encoding():
@@ -176,7 +205,7 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 2500):
+        for round in range(0, 1):
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
@@ -187,6 +216,24 @@ def test_read_file():
             assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(test_filename, method, exit_code,
                                                                                                  output)
             assert file_content == output, 'Round {} File content and output are not identical, method={}'.format(round, method)
+
+
+def test_stop_on_argument():
+    expected_output_regex = "Command .* was stopped because stop_on function returned True. Original output was:"
+    def stop_on():
+        """
+        Simple function that returns True two seconds after reset_elapsed_time() has been called
+        """
+        if get_elapsed_time() > 2:
+            return True
+
+    for method in methods:
+        reset_elapsed_time()
+        exit_code, output = command_runner(PING_CMD, stop_on=stop_on, method=method)
+        assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                 output)
+        assert re.match(expected_output_regex, output, re.MULTILINE), 'stop_on output is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                 output)
 
 
 def test_deferred_command():

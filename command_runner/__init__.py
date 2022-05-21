@@ -18,8 +18,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.3.1"
-__build__ = "2022041601"
+__version__ = "1.4.0-dev"
+__build__ = "2022052001"
 
 import io
 import os
@@ -49,7 +49,7 @@ import threading
 
 # Python 2.7 compat fixes (missing typing and FileNotFoundError)
 try:
-    from typing import Union, Optional, List, Tuple, NoReturn, Any
+    from typing import Union, Optional, List, Tuple, NoReturn, Any, Callable
 except ImportError:
     pass
 try:
@@ -87,7 +87,19 @@ except AttributeError:
             self.output = value
 
 
-class KbdInterruptGetOutput(BaseException):
+class InterruptGetOutput(BaseException):
+    """
+    Make sure we get the current output when process is stopped mid-execution
+    """
+
+    def __init__(self, output):
+        self._output = output
+
+    @property
+    def output(self):
+        return self._output
+
+class KbdInterruptGetOutput(InterruptGetOutput):
     """
     Make sure we get the current output when KeyboardInterrupt is made
     """
@@ -98,6 +110,20 @@ class KbdInterruptGetOutput(BaseException):
     @property
     def output(self):
         return self._output
+
+
+class StopOnInterrupt(InterruptGetOutput):
+    """
+    Make sure we get the current output when optional stop_on function execution returns True
+    """
+
+    def __init__(self, output):
+        self._output = output
+
+    @property
+    def output(self):
+        return self._output
+
 
 
 logger = getLogger(__intname__)
@@ -208,6 +234,7 @@ def command_runner(
     live_output=False,  # type: bool
     method="monitor",  # type: str
     min_resolution=0.05,  # type: float
+    stop_on=None,  # type: Callable
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -233,6 +260,8 @@ def command_runner(
     your program depends on the commands' stdout output)
 
     windows_no_window will disable visible window (MS Windows platform only)
+
+    stop_on is an optional function that will stop execution if function returns True
 
     Returns a tuple (exit_code, output)
     """
@@ -374,6 +403,9 @@ def command_runner(
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 raise TimeoutExpired(process, timeout, output)
+            if stop_on and stop_on():
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                raise StopOnInterrupt(output)
 
         try:
             read_thread = threading.Thread(
@@ -413,19 +445,24 @@ def command_runner(
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
-        timeout_queue,  # type: queue.Queue
+        stop_queue,  # type: queue.Queue
     ):
         # type: (...) -> None
 
         """
         Since elder python versions don't have timeout, we need to manually check the timeout for a process
+        when working in process monitor mode
         """
 
         begin_time = datetime.now()
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                timeout_queue.put(True)
+                stop_queue.put("T")  # T stands for TIMEOUT REACHED
+                break
+            if stop_on and stop_on():
+                kill_childs_mod(process.pid, itself=True, soft_kill=False)
+                stop_queue.put("S")  # S stands for STOP_ON RETURNED TRUE
                 break
             if process.poll() is not None:
                 break
@@ -439,7 +476,7 @@ def command_runner(
     ):
         # type: (...) -> Tuple[Optional[int], str]
         """
-        Create a thread in order to enforce timeout
+        Create a thread in order to enforce timeout or a stop_on condition
         Get stdout output and return it
         """
 
@@ -447,12 +484,12 @@ def command_runner(
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
         # Let's create a queue to get the timeout thread response on a deterministic way
-        timeout_queue = queue.Queue()
-        is_timeout = False
+        stop_queue = queue.Queue()
+        must_stop = False
 
         thread = threading.Thread(
             target=_timeout_check_thread,
-            args=(process, timeout, timeout_queue),
+            args=(process, timeout, stop_queue),
         )
         thread.setDaemon(True)
         thread.start()
@@ -466,7 +503,7 @@ def command_runner(
             while process.poll() is None:
                 sleep(min_resolution)
                 try:
-                    is_timeout = timeout_queue.get_nowait()
+                    must_stop = stop_queue.get_nowait()
                 except queue.Empty:
                     pass
                 else:
@@ -495,11 +532,17 @@ def command_runner(
                 sleep(min_resolution)
 
             try:
-                is_timeout = timeout_queue.get_nowait()
+                must_stop = stop_queue.get_nowait()
             except queue.Empty:
                 pass
-            if is_timeout:
+            if must_stop == "T":
                 raise TimeoutExpired(process, timeout, process_output)
+            elif must_stop == "S":
+                raise StopOnInterrupt(process_output)
+            elif must_stop is not False:
+                # stop_queue should never have values other than "TIMEOUT" or "STOP"
+                # Nevertheless, if a read error occured, we still should stop execution
+                raise EnvironmentError
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
@@ -595,12 +638,16 @@ def command_runner(
         logger.error(message)
         if stdout_to_file:
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = (
-            -254,
-            'Timeout of {} seconds expired for command "{}" execution. Original output was: {}'.format(
-                timeout, command, exc.output
-            ),
+        exit_code, output = (-254, message)
+    except StopOnInterrupt as exc:
+        message = 'Command {} was stopped because stop_on function returned True. Original output was: {}'.format(
+            command, exc.output
         )
+        logger.info(message)
+        if stdout_to_file:
+            _stdout.write(message.encode(encoding, errors=errors))
+        exit_code, output = (-251, message)
+
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
@@ -617,7 +664,6 @@ def command_runner(
             _stderr.close()
 
     logger.debug(output)
-
     return exit_code, output
 
 
