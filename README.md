@@ -12,7 +12,10 @@
 
 command_runner's purpose is to run external commands from python, just like subprocess on which it is based, 
 while solving various problems a developer may face among:
-   - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function
+   - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function without encoding / timeout hassle
+   - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get live output into your application
+   - Callback to optional stop check so we can stop execution from outside command_runner
+   - Callback with optional process class so we get to control the process from outside command_runner
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
