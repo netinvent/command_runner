@@ -22,8 +22,6 @@ __build__ = '2022052201'
 
 
 import re
-from datetime import datetime
-import psutil
 from command_runner import *
 
 
@@ -41,7 +39,7 @@ else:
         return date.timestamp()
 
 
-
+streams = ['stdout', 'stderr']
 methods = ['monitor', 'poller']
 
 if os.name == 'nt':
@@ -52,13 +50,14 @@ else:
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
     # TODO shlex.split(command, posix=True) test for Linux
 
-ELAPSED_TIME=timestamp(datetime.now())
-PROCESS_ID=None
+ELAPSED_TIME = timestamp(datetime.now())
+PROCESS_ID = None
+STREAM_OUTPUT = ""
 
 
 def reset_elapsed_time():
     global ELAPSED_TIME
-    ELAPSED_TIME=timestamp(datetime.now())
+    ELAPSED_TIME = timestamp(datetime.now())
 
 
 def get_elapsed_time():
@@ -248,6 +247,81 @@ def test_process_callback():
         assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
         assert isinstance(PROCESS_ID, subprocess.Popen), 'callback did not work properly. PROCESS_ID="{}"'.format(PROCESS_ID)
+
+
+def test_stream_callback():
+    global STREAM_OUTPUT
+
+    def stream_callback(string):
+        global STREAM_OUTPUT
+        STREAM_OUTPUT += string
+        print("CALLBACK: ", string)
+
+    for stream in streams:
+        stream_args = {stream: stream_callback}
+        for method in methods:
+            STREAM_OUTPUT = ""
+            try:
+                exit_code, output = command_runner(PING_CMD + ' 1>&2', shell=True, method=method, **stream_args)
+            except ValueError:
+                if method == 'poller':
+                    assert False, 'ValueError should not be produced in poller mode.'
+            if method == 'poller':
+                assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                     output)
+
+                # Since we redirect STDOUT to STDERR
+                assert STREAM_OUTPUT == output, 'Callback stream should contain same result as output'
+            else:
+                assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                     output)
+
+
+def test_queue_output():
+    global STREAM_OUTPUT
+
+    def read_queue(output_queue):
+        global STREAM_OUTPUT
+
+        while True:
+            try:
+                line = output_queue.get(timeout=0.1)
+            except queue.Empty:
+                pass
+            else:
+                if line is None:
+                    break
+                else:
+                    STREAM_OUTPUT += line
+                    print("QUEUE: ", line)
+
+    for stream in streams:
+
+        output_queue = queue.Queue()
+
+        read_thread = threading.Thread(
+            target=read_queue, args=(output_queue, )
+        )
+        read_thread.daemon = True  # thread dies with the program
+        read_thread.start()
+
+        stream_args = {stream: output_queue}
+        for method in methods:
+            STREAM_OUTPUT = ""
+            try:
+                exit_code, output = command_runner(PING_CMD + ' 1>&2', shell=True, method=method, **stream_args)
+            except ValueError:
+                if method == 'poller':
+                    assert False, 'ValueError should not be produced in poller mode.'
+            if method == 'poller':
+                assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                      output)
+                # Since we redirect STDOUT to STDERR
+                assert STREAM_OUTPUT == output, 'Callback stream should contain same result as output'
+            else:
+                assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
+                    method, exit_code,
+                    output)
 
 
 def test_deferred_command():
