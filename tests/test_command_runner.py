@@ -49,7 +49,7 @@ if os.name == 'nt':
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
-    PING_CMD_REDIR = PING_CMD.append('1>&2')
+    PING_CMD_REDIR = PING_CMD + ['1>&2']
     # TODO shlex.split(command, posix=True) test for Linux
 
 ELAPSED_TIME = timestamp(datetime.now())
