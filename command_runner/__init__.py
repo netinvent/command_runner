@@ -232,7 +232,8 @@ def kill_childs_mod(
                 process.kill()
 
     try:
-        current_process = psutil.Process(pid if pid is not None else os.getpid())
+        current_pid = pid if pid is not None else os.getpid()
+        current_process = psutil.Process(current_pid)
     # psutil.NoSuchProcess might not be available, let's be broad
     # pylint: disable=W0703
     except Exception:
@@ -245,7 +246,7 @@ def kill_childs_mod(
             except OSError as exc:
                 logger.error(
                     "Could not properly kill process {} with pid {}: {}".format(
-                        current_process, current_process.pid, to_encoding(exc.__str__(), 'utf-8', )
+                        current_pid, to_encoding(exc.__str__(), 'utf-8', )
                     )
                 )
                 raise
