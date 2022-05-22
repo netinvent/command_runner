@@ -66,8 +66,10 @@ except ImportError:
     # avoid NameError
     def threaded(fn):
         return fn
+
     def wraps(fn):
         return fn
+
 
 # Python 2.7 compat fixes (no FileNotFoundError class)
 try:
@@ -81,6 +83,7 @@ except NameError:
 try:
     TimeoutExpired = subprocess.TimeoutExpired
 except AttributeError:
+
     class TimeoutExpired(BaseException):
         """
         Basic redeclaration when subprocess.TimeoutExpired does not exist, python <= 3.3
@@ -159,6 +162,7 @@ def call_with_future(fn, future, args, kwargs):
         future.set_exception(exc)
 
 
+# pylint: disable=E0102 (function-redefined)
 def threaded(fn):
     """
     @threaded wrapper in order to thread any function
@@ -171,10 +175,14 @@ def threaded(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         future = Future()
-        threading.Thread(target=call_with_future, args=(fn, future, args, kwargs)).start()
+        threading.Thread(
+            target=call_with_future, args=(fn, future, args, kwargs)
+        ).start()
         return future
 
     return wrapper
+
+
 ### END DIRECT IMPORT FROM ofunctions.threading
 
 
@@ -815,6 +823,7 @@ def command_runner(
 
 
 if sys.version_info[0] >= 3:
+
     @threaded
     def command_runner_threaded(*args, **kwargs):
         """
@@ -822,7 +831,6 @@ if sys.version_info[0] >= 3:
         Not available for Python 2.7
         """
         return command_runner(*args, **kwargs)
-
 
 
 def deferred_command(command, defer_time=300):
