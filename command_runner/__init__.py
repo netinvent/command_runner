@@ -213,9 +213,14 @@ def kill_childs_mod(
     # pylint: disable=W0703
     except Exception:
         if itself:
-            os.kill(
-                pid, 15
-            )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
+            ### BEGIN COMMAND_RUNNER MOD
+            try:
+                os.kill(
+                    pid, 15
+                )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
+            except OSError as exc:
+                logger.error("Could not properly kill process {} with pid {}: {}".format(process, process.pid, exc.__str__))
+            ### END COMMAND_RUNNER MOD
         return False
 
     for child in current_process.children(recursive=True):
