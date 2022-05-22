@@ -134,6 +134,30 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
+def to_encoding(
+        process_output,  # type: Union[str, bytes]
+        encoding,  # type: str
+        errors,  # type: str
+):
+    # type: (...) -> str
+    """
+    Convert bytes output to string and handles conversion errors
+    Varation of ofunctions.string_handling.safe_string_convert
+    """
+    # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
+    if isinstance(process_output, bytes):
+        try:
+            process_output = process_output.decode(encoding, errors=errors)
+        except TypeError:
+            try:
+                # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
+                process_output = process_output.decode(encoding, errors="ignore")
+            except (ValueError, TypeError):
+                # What happens when str cannot be concatenated
+                logger.debug("Output cannot be captured {}".format(process_output))
+    return process_output
+
+
 def kill_childs_mod(
     pid=None,  # type: int
     itself=False,  # type: bool
@@ -219,7 +243,12 @@ def kill_childs_mod(
                     pid, 15
                 )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
             except OSError as exc:
-                logger.error("Could not properly kill process {} with pid {}: {}".format(process, process.pid, exc.__str__))
+                logger.error(
+                    "Could not properly kill process {} with pid {}: {}".format(
+                        current_process, current_process.pid, to_encoding(exc.__str__(), 'utf-8', )
+                    )
+                )
+                raise
             ### END COMMAND_RUNNER MOD
         return False
 
@@ -350,28 +379,6 @@ def command_runner(
     else:
         _stderr = subprocess.STDOUT
         stderr_destination = "stdout"
-
-    def to_encoding(
-        process_output,  # type: Union[str, bytes]
-        encoding,  # type: str
-        errors,  # type: str
-    ):
-        # type: (...) -> str
-        """
-        Convert bytes output to string and handles conversion errors
-        """
-        # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
-        if isinstance(process_output, bytes):
-            try:
-                process_output = process_output.decode(encoding, errors=errors)
-            except TypeError:
-                try:
-                    # handle TypeError: don't know how to handle UnicodeDecodeError in error callback
-                    process_output = process_output.decode(encoding, errors="ignore")
-                except (ValueError, TypeError):
-                    # What happens when str cannot be concatenated
-                    logger.debug("Output cannot be captured {}".format(process_output))
-        return process_output
 
     def _read_pipe(
         stream,  # type: io.StringIO
@@ -656,10 +663,14 @@ def command_runner(
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
-                if stdout_destination in [
-                    "callback",
-                    "queue",
-                ] or stderr_destination in ["callback", "queue"]:
+                if (
+                    stdout_destination
+                    in [
+                        "callback",
+                        "queue",
+                    ]
+                    or stderr_destination in ["callback", "queue"]
+                ):
                     raise ValueError(
                         'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
                     )
@@ -698,13 +709,19 @@ def command_runner(
         )
         logger.error(output)
     except FileNotFoundError as exc:
-        logger.error('Command "{}" failed, file not found: {}'.format(command, exc))
-        exit_code, output = -253, exc.__str__()
+        message = 'Command "{}" failed, file not found: {}'.format(command,  to_encoding(exc.__str__(), encoding, errors))
+        logger.error(message)
+        if stdout_destination == "file":
+            _stdout.write(message.encode(encoding, errors=errors))
+        exit_code, output = (-253, message)
     # On python 2.7, OSError is also raised when file is not found (no FileNotFoundError)
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
-        logger.error('Command "{}" failed because of OS: {}'.format(command, exc))
-        exit_code, output = -253, exc.__str__()
+        message = 'Command "{}" failed because of OS: {}'.format(command, to_encoding(exc.__str__(), encoding, errors))
+        logger.error(message)
+        if stdout_destination == "file":
+            _stdout.write(message.encode(encoding, errors=errors))
+        exit_code, output = (-253, message)
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
             timeout, command, exc.output
@@ -731,11 +748,10 @@ def command_runner(
     # pylint: disable=W0703
     except Exception as exc:
         logger.error(
-            'Command "{}" failed for unknown reasons: {}'.format(command, exc),
-            exc_info=True,
+            'Command "{}" failed for unknown reasons: {}'.format(command,  to_encoding(exc.__str__(), encoding, errors)),
         )
         logger.debug("Error:", exc_info=True)
-        exit_code, output = -255, exc.__str__()
+        exit_code, output = (-255, to_encoding(exc.__str__(), encoding, errors))
     finally:
         if stdout_destination == "file":
             _stdout.close()
