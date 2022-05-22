@@ -45,9 +45,11 @@ methods = ['monitor', 'poller']
 if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
+    PING_CMD_REDIR = PING_CMD + ' 1>&2'
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
+    PING_CMD_REDIR = PING_CMD.append('1>&2')
     # TODO shlex.split(command, posix=True) test for Linux
 
 ELAPSED_TIME = timestamp(datetime.now())
@@ -262,7 +264,7 @@ def test_stream_callback():
         for method in methods:
             STREAM_OUTPUT = ""
             try:
-                exit_code, output = command_runner(PING_CMD + ' 1>&2', shell=True, method=method, **stream_args)
+                exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
             except ValueError:
                 if method == 'poller':
                     assert False, 'ValueError should not be produced in poller mode.'
@@ -309,7 +311,7 @@ def test_queue_output():
         for method in methods:
             STREAM_OUTPUT = ""
             try:
-                exit_code, output = command_runner(PING_CMD + ' 1>&2', shell=True, method=method, **stream_args)
+                exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
             except ValueError:
                 if method == 'poller':
                     assert False, 'ValueError should not be produced in poller mode.'
