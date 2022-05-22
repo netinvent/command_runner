@@ -220,7 +220,7 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 1): # TODO set back to 2500
+        for round in range(0, 2500):
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
