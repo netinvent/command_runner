@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052201'
+__build__ = '2022052202'
 
 
 import re
@@ -64,6 +64,15 @@ def reset_elapsed_time():
 
 def get_elapsed_time():
     return timestamp(datetime.now()) - ELAPSED_TIME
+
+
+def running_on_github_actions():
+    """
+    This is set in github actions workflow with
+          env:
+        RUNNING_ON_GITHUB_ACTIONS: true
+    """
+    return os.environ.get("RUNNING_ON_GITHUB_ACTIONS") == "true"  # bash 'true'
 
 
 def test_standard_ping_with_encoding():
@@ -234,7 +243,12 @@ def test_stop_on_argument():
         reset_elapsed_time()
         print('method={}'.format(method))
         exit_code, output = command_runner(PING_CMD, stop_on=stop_on, method=method)
-        assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+
+        # On github actions only, we get -251 failed because of OS: [Error 5] Access is denied error when os.kill(pid) is called in kill_childs_mod
+        if running_on_github_actions() and os.name == 'nt':
+            assert exit_code == -253, 'Not as expected, we should get a permission error on github actions windows platform'
+        else:
+            assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
         assert re.match(expected_output_regex, output, re.MULTILINE), 'stop_on output is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
