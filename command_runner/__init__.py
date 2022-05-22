@@ -250,6 +250,7 @@ def kill_childs_mod(
                         to_encoding(
                             exc.__str__(),
                             "utf-8",
+                            "backslashreplace"
                         ),
                     )
                 )
