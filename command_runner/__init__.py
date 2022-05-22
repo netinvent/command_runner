@@ -454,6 +454,8 @@ def command_runner(
                     pass
                 else:
                     if line is None:
+                        if stdout_destination == "queue":
+                            stdout.put(None)
                         break
                     else:
                         line = to_encoding(line, encoding, errors)
@@ -472,6 +474,8 @@ def command_runner(
                         pass
                     else:
                         if line is None:
+                            if stderr_destination == "queue":
+                                stderr.put(None)
                             break
                         else:
                             line = to_encoding(line, encoding, errors)
