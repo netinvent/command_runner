@@ -244,12 +244,12 @@ def test_stop_on_argument():
         print('method={}'.format(method))
         exit_code, output = command_runner(PING_CMD, stop_on=stop_on, method=method)
 
-        # On github actions only with Python 2.7.18, we get -251 failed because of OS: [Error 5] Access is denied
+        # On github actions only with Python 2.7.18, we sometimes get -251 failed because of OS: [Error 5] Access is denied
         # when os.kill(pid) is called in kill_childs_mod
         # On my windows platform using the same Python version, it works...
         # well nothing I can debug on github actions
         if running_on_github_actions() and os.name == 'nt' and sys.version_info[0] < 3:
-            assert exit_code == -253, 'Not as expected, we should get a permission error on github actions windows platform'
+            assert exit_code in [-253, -251], 'Not as expected, we should get a permission error on github actions windows platform'
         else:
             assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
