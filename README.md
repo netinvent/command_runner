@@ -126,7 +126,7 @@ from command_runner import command_runner
 exit_code, output = command_runner('ping 127.0.0.1', timeout=30)
 ```
 
-### Remarks on processes
+#### Remarks on processes
 
 Using `shell=True` will spawn a shell which will spawn the desired child process.
 Be aware that under MS Windows, no direct process tree is available.
@@ -174,22 +174,24 @@ exit_code, output = command_runner('ping 127.0.0.1', method='monitor')
 
 command_runner can redirect stdout and/or stderr streams to different outputs:
  - subprocess pipes
+ - /dev/null or NUL
  - files
  - queues
  - callback functions
- - Null
  
-Both queues and callback function redirects require `poller` method and will fail if method is not set.
-Unless an output redrection is given for `stderr`, it will be redirected to `stdout` stream.
+Unless an output redirector is given for `stderr` argument, stderr will be redirected to `stdout` stream.
+Note that both queues and callback function redirectors require `poller` method and will fail if method is not set.
 
 Possible output redirection options are:
 
-- subprocess pipes / Null:
+- subprocess pipes
 By default, stdout writes into a subprocess.PIPE which is read by command_runner and returned as `output` variable.
+You may also pass any other subprocess.PIPE int values to `stdout` or `stderr` arguments.
+
+- /dev/null or NUL
 If `stdout=False` and/or `stderr=False` argument(s) are given, command output will not be saved.
 
 - files
-
 Giving `stdout` and/or `stderr` arguments a string, `command_runner` will consider the string to be a file path where stream output will be written live.
 Example (of course this also works with unix paths):
 
