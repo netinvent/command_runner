@@ -55,6 +55,7 @@ else:
 ELAPSED_TIME = timestamp(datetime.now())
 PROCESS_ID = None
 STREAM_OUTPUT = ""
+PROC = None
 
 
 def reset_elapsed_time():
@@ -219,7 +220,7 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 1):
+        for round in range(0, 1): # TODO set back to 2500
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
@@ -301,56 +302,49 @@ def test_stream_callback():
 
 
 def test_queue_output():
-    global STREAM_OUTPUT
+    """
+    Thread command runner and get it's output queue
+    """
 
-    def read_queue(output_queue):
-        global STREAM_OUTPUT
+    if sys.version_info[0] < 3:
+        print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
+        return
 
-        while True:
-            try:
-                line = output_queue.get(timeout=0.1)
-            except queue.Empty:
-                pass
-            else:
-                if line is None:
-                    break
-                else:
-                    STREAM_OUTPUT += line
-                    print("QUEUE: ", line)
-
-    for i in range(0, 1000):
-
-        for stream in streams:
-            output_queue = queue.Queue()
-
-            read_thread = threading.Thread(
-                target=read_queue, args=(output_queue, )
-            )
-            read_thread.daemon = True  # thread dies with the program
-            read_thread.start()
-
+    for stream in streams:
+        output_queue = queue.Queue()
+        for method in methods:
+            stream_output = ""
             stream_args = {stream: output_queue}
-            for method in methods:
-                STREAM_OUTPUT = ""
+            output_queue.queue.clear()
+            print('i={}, Method={}, stream={}, output=queue'.format(i, method, stream))
+            thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+
+            read_queue = True
+            while read_queue:
+                if thread_result.done():
+                    read_queue = False
                 try:
-                    print('Method={}, stream={}, output=queue'.format(method, stream))
-                    exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
-                except ValueError:
-                    if method == 'poller':
-                        assert False, 'ValueError should not be produced in poller mode.'
-                if method == 'poller':
-                    assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
-                                                                                                          output)
-                    # Since we redirect STDOUT to STDERR
-                    #assert STREAM_OUTPUT == output, 'Callback stream should contain same result as output'
-                    print('output')
-                    print(output)
-                    print('stream')
-                    print(STREAM_OUTPUT)
+                    line = output_queue.get(timeout=0.1)
+                except queue.Empty:
+                    pass
                 else:
-                    assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
-                        method, exit_code,
-                        output)
+                    if line is None:
+                        break
+                    else:
+                        stream_output += line
+
+
+            exit_code, output = thread_result.result()
+
+            if method == 'poller':
+                assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                      output)
+                # Since we redirect STDOUT to STDERR
+                assert stream_output == output, 'Callback stream should contain same result as output'
+            else:
+                assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
+                    method, exit_code,
+                    output)
 
 
 def test_deferred_command():
@@ -367,8 +361,58 @@ def test_deferred_command():
     os.remove(test_filename)
 
 
+def test_powershell_output():
+    # Don't bother to test powershell on other platforms than windows
+    if os.name != 'nt':
+        return True
+    """
+    Parts from windows_tools.powershell are used here
+    """
+
+    # Try to guess powershell path if no valid path given
+    interpreter_executable = "powershell.exe"
+    for syspath in ["sysnative", "system32"]:
+        try:
+            # Let's try native powershell (64 bit) first or else
+            # Import-Module may fail when running 32 bit powershell on 64 bit arch
+            best_guess = os.path.join(
+                os.environ.get("SYSTEMROOT", "C:"),
+                syspath,
+                "WindowsPowerShell",
+                "v1.0",
+                interpreter_executable,
+            )
+            if os.path.isfile(best_guess):
+                powershell_interpreter = best_guess
+                break
+        except KeyError:
+            pass
+    if powershell_interpreter is None:
+        try:
+            ps_paths = os.path.dirname(os.environ["PSModulePath"]).split(";")
+            for ps_path in ps_paths:
+                if ps_path.endswith("Modules"):
+                    ps_path = ps_path.strip("Modules")
+                possible_ps_path = os.path.join(ps_path, interpreter_executable)
+                if os.path.isfile(possible_ps_path):
+                    powershell_interpreter = possible_ps_path
+                    break
+        except KeyError:
+            pass
+
+    if powershell_interpreter is None:
+        raise OSError("Could not find any valid powershell interpreter")
+
+    # Do not add -NoProfile so we don't end up in a path we're not supposed to
+    command = powershell_interpreter + " -NonInteractive -NoLogo %s" % PING_CMD
+    exit_code, output = command_runner(command, encoding="unicode_escape")
+    print('powershell: ', exit_code, output)
+    assert exit_code == 0, 'Powershell execution failed.'
+
+
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
+    test_queue_output()
     test_standard_ping_with_encoding()
     test_standard_ping_without_encoding()
     test_timeout()
@@ -385,3 +429,4 @@ if __name__ == "__main__":
     test_process_callback()
     test_queue_output()
     test_deferred_command()
+    test_powershell_output()
