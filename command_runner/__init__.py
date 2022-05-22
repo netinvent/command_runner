@@ -411,16 +411,10 @@ def command_runner(
 
         begin_time = datetime.now()
         output = ""
-        if stdout_destination == "queue":
-            stdout_queue = stdout
-        else:
-            stdout_queue = queue.Queue()
+        stdout_queue = queue.Queue()
 
         if stderr_destination != "stdout":
-            if stderr_destination == "queue":
-                stderr_queue = stderr
-            else:
-                stderr_queue = queue.Queue()
+            stderr_queue = queue.Queue()
 
         def __check_timeout(
             begin_time,  # type: datetime.timestamp
@@ -454,41 +448,43 @@ def command_runner(
                 read_thread.start()
 
             while True:
-                if stdout_destination != "queue":
-                    try:
-                        line = stdout_queue.get(timeout=min_resolution)
-                    except queue.Empty:
-                        pass
-                        # TODO do we need multiple checks here and below
-                        # __check_timeout(begin_time, timeout)
+                try:
+                    line = stdout_queue.get(timeout=min_resolution)
+                except queue.Empty:
+                    pass
+                else:
+                    if line is None:
+                        if stdout_destination == "queue":
+                            stdout.put(None)
+                        break
                     else:
-                        if line is None:
-                            break
-                        else:
-                            line = to_encoding(line, encoding, errors)
-                            if live_output:
-                                if stdout_destination == "callback":
-                                    stdout(line)
-                                else:
-                                    sys.stdout.write(line)
-                            output += line
-                        # TODO__check_timeout(begin_time, timeout)
+                        line = to_encoding(line, encoding, errors)
+                        if stdout_destination == "callback":
+                            stdout(line)
+                        if stdout_destination == "queue":
+                            stdout.put(line)
+                        if live_output:
+                            sys.stdout.write(line)
+                        output += line
 
-                if stderr_destination not in ["stdout", "queue"]:
+                if stderr_destination != "stdout":
                     try:
                         line = stderr_queue.get(timeout=min_resolution)
                     except queue.Empty:
-                        pass  # TODO Don't check timeout twice since we already do for stdout
+                        pass
                     else:
                         if line is None:
+                            if stderr_destination == "queue":
+                                stderr.put(None)
                             break
                         else:
                             line = to_encoding(line, encoding, errors)
+                            if stderr_destination == "callback":
+                                stderr(line)
+                            if stderr_destination == "queue":
+                                stderr.put(line)
                             if live_output:
-                                if stderr_destination == "callback":
-                                    stderr(line)
-                                else:
-                                    sys.stderr.write(line)
+                                sys.stderr.write(line)
                             output += line
                 __check_timeout(begin_time, timeout)
 
@@ -652,10 +648,11 @@ def command_runner(
             # let's return process information if callback was given
             if callable(process_callback):
                 process_callback(process)
-
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
+                if stdout_destination in ["callback", "queue"] or stderr_destination in ["callback", "queue"]:
+                    raise ValueError("Cannot use callback or queue destination in monitor mode. Please use method=\"poller\" argument.")
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
@@ -714,7 +711,12 @@ def command_runner(
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-251, message)
-
+    except ValueError as exc:
+        message = exc
+        logger.error(message)
+        if stdout_destination == "file":
+            _stdout.write(message.encode(encoding, errors=errors))
+        exit_code, output = (-250, message)
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
