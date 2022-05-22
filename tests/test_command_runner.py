@@ -84,6 +84,7 @@ def test_standard_ping_with_encoding():
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
+
 def test_standard_ping_without_encoding():
     """
     Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
@@ -107,6 +108,7 @@ def test_timeout():
         assert (end_time - begin_time).total_seconds() < 2, 'It took more than 2 seconds for a timeout=1 command to finish with method {}'.format(method)
         assert exit_code == -254, 'Exit code should be -254 on timeout with method {}'.format(method)
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
+
 
 def test_timeout_with_subtree_killing():
     """
@@ -316,38 +318,39 @@ def test_queue_output():
                     STREAM_OUTPUT += line
                     print("QUEUE: ", line)
 
-    for stream in streams:
+    for i in range(0, 1000):
 
-        output_queue = queue.Queue()
+        for stream in streams:
+            output_queue = queue.Queue()
 
-        read_thread = threading.Thread(
-            target=read_queue, args=(output_queue, )
-        )
-        read_thread.daemon = True  # thread dies with the program
-        read_thread.start()
+            read_thread = threading.Thread(
+                target=read_queue, args=(output_queue, )
+            )
+            read_thread.daemon = True  # thread dies with the program
+            read_thread.start()
 
-        stream_args = {stream: output_queue}
-        for method in methods:
-            STREAM_OUTPUT = ""
-            try:
-                print('Method={}, stream={}, output=queue'.format(method, stream))
-                exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
-            except ValueError:
+            stream_args = {stream: output_queue}
+            for method in methods:
+                STREAM_OUTPUT = ""
+                try:
+                    print('Method={}, stream={}, output=queue'.format(method, stream))
+                    exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+                except ValueError:
+                    if method == 'poller':
+                        assert False, 'ValueError should not be produced in poller mode.'
                 if method == 'poller':
-                    assert False, 'ValueError should not be produced in poller mode.'
-            if method == 'poller':
-                assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
-                                                                                                      output)
-                # Since we redirect STDOUT to STDERR
-                #assert STREAM_OUTPUT == output, 'Callback stream should contain same result as output'
-                print('output')
-                print(output)
-                print('stream')
-                print(STREAM_OUTPUT)
-            else:
-                assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
-                    method, exit_code,
-                    output)
+                    assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                          output)
+                    # Since we redirect STDOUT to STDERR
+                    #assert STREAM_OUTPUT == output, 'Callback stream should contain same result as output'
+                    print('output')
+                    print(output)
+                    print('stream')
+                    print(STREAM_OUTPUT)
+                else:
+                    assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
+                        method, exit_code,
+                        output)
 
 
 def test_deferred_command():
@@ -366,4 +369,19 @@ def test_deferred_command():
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
+    test_standard_ping_with_encoding()
+    test_standard_ping_without_encoding()
+    test_timeout()
+    test_timeout_with_subtree_killing()
+    test_no_timeout()
+    test_live_output()
+    test_not_found()
+    test_file_output()
+    test_valid_exit_codes()
+    test_unix_only_split_command()
+    test_create_no_window()
+    test_read_file()
+    test_stop_on_argument()
+    test_process_callback()
     test_queue_output()
+    test_deferred_command()
