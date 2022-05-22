@@ -316,7 +316,7 @@ def test_queue_output():
             stream_output = ""
             stream_args = {stream: output_queue}
             output_queue.queue.clear()
-            print('i={}, Method={}, stream={}, output=queue'.format(i, method, stream))
+            print('Method={}, stream={}, output=queue'.format(method, stream))
             thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
 
             read_queue = True
