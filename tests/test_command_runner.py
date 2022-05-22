@@ -75,7 +75,7 @@ def running_on_github_actions():
     return os.environ.get("RUNNING_ON_GITHUB_ACTIONS") == "true"  # bash 'true'
 
 
-def test_standard_ping_with_encoding():
+def utest_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
     """
@@ -84,7 +84,7 @@ def test_standard_ping_with_encoding():
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
-def test_standard_ping_without_encoding():
+def utest_standard_ping_without_encoding():
     """
     Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
     This could only happen on python <3.6 since command_runner decides to use an encoding anyway
@@ -95,7 +95,7 @@ def test_standard_ping_without_encoding():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_timeout():
+def utest_timeout():
     """
     Test command_runner with a timeout
     """
@@ -108,7 +108,7 @@ def test_timeout():
         assert exit_code == -254, 'Exit code should be -254 on timeout with method {}'.format(method)
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
-def test_timeout_with_subtree_killing():
+def utest_timeout_with_subtree_killing():
     """
     Launch a subtree of long commands and see if timeout actually kills them in time
     """
@@ -128,7 +128,7 @@ def test_timeout_with_subtree_killing():
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
 
-def test_no_timeout():
+def utest_no_timeout():
     """
     Test with setting timeout=None
     """
@@ -138,7 +138,7 @@ def test_no_timeout():
         assert exit_code == 0, 'Without timeout, command should have run with method {}'.format(method)
 
 
-def test_live_output():
+def utest_live_output():
     """
     Test command_runner with live output to stdout
     """
@@ -147,7 +147,7 @@ def test_live_output():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_not_found():
+def utest_not_found():
     """
     Test command_runner with an unexisting command
     """
@@ -157,7 +157,7 @@ def test_not_found():
         assert exit_code == -253, 'Unknown command should trigger a -253 exit code with method {}'.format(method)
 
 
-def test_file_output():
+def utest_file_output():
     """
     Test commandr_runner with file output instead of stdout
     """
@@ -179,7 +179,7 @@ def test_file_output():
         os.remove(stderr_filename)
 
 
-def test_valid_exit_codes():
+def utest_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
     """
@@ -188,7 +188,7 @@ def test_valid_exit_codes():
         assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
 
 
-def test_unix_only_split_command():
+def utest_unix_only_split_command():
     """
     This test is specifically written when command_runner receives a str command instead of a list on unix
     """
@@ -198,7 +198,7 @@ def test_unix_only_split_command():
             assert exit_code == 0, 'Non splitted command should not trigger an error with method {}'.format(method)
 
 
-def test_create_no_window():
+def utest_create_no_window():
     """
     Only used on windows, when we don't want to create a cmd visible windows
     """
@@ -207,7 +207,7 @@ def test_create_no_window():
         assert exit_code == 0, 'Should have worked too with method {}'.format(method)
 
 
-def test_read_file():
+def utest_read_file():
     """
     Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
     This is a random failure detection test
@@ -244,8 +244,11 @@ def test_stop_on_argument():
         print('method={}'.format(method))
         exit_code, output = command_runner(PING_CMD, stop_on=stop_on, method=method)
 
-        # On github actions only, we get -251 failed because of OS: [Error 5] Access is denied error when os.kill(pid) is called in kill_childs_mod
-        if running_on_github_actions() and os.name == 'nt':
+        # On github actions only with Python 2.7.18, we get -251 failed because of OS: [Error 5] Access is denied
+        # when os.kill(pid) is called in kill_childs_mod
+        # On my windows platform using the same Python version, it works...
+        # well nothing I can debug on github actions
+        if running_on_github_actions() and os.name == 'nt' and sys.version_info[0] < 3:
             assert exit_code == -253, 'Not as expected, we should get a permission error on github actions windows platform'
         else:
             assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
@@ -254,7 +257,7 @@ def test_stop_on_argument():
                                                                                                  output)
 
 
-def test_process_callback():
+def utest_process_callback():
     def callback(process_id):
         global PROCESS_ID
         PROCESS_ID = process_id
@@ -266,7 +269,7 @@ def test_process_callback():
         assert isinstance(PROCESS_ID, subprocess.Popen), 'callback did not work properly. PROCESS_ID="{}"'.format(PROCESS_ID)
 
 
-def test_stream_callback():
+def utest_stream_callback():
     global STREAM_OUTPUT
 
     def stream_callback(string):
@@ -295,7 +298,7 @@ def test_stream_callback():
                                                                                                      output)
 
 
-def xtest_queue_output():
+def test_queue_output():
     global STREAM_OUTPUT
 
     def read_queue(output_queue):
@@ -347,7 +350,7 @@ def xtest_queue_output():
                     output)
 
 
-def test_deferred_command():
+def utest_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
     """
