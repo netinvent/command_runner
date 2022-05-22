@@ -651,8 +651,17 @@ def command_runner(
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
-                if stdout_destination in ["callback", "queue"] or stderr_destination in ["callback", "queue"]:
-                    raise ValueError("Cannot use callback or queue destination in monitor mode. Please use method=\"poller\" argument.")
+                if (
+                    stdout_destination
+                    in [
+                        "callback",
+                        "queue",
+                    ]
+                    or stderr_destination in ["callback", "queue"]
+                ):
+                    raise ValueError(
+                        'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
+                    )
                 exit_code, output = _monitor_process(process, timeout, encoding, errors)
         except KbdInterruptGetOutput as exc:
             exit_code = -252
