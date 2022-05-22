@@ -253,7 +253,7 @@ def test_stop_on_argument():
         else:
             assert exit_code == -251, 'Monitor mode should have been stopped by stop_on with exit_code -251. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
-        assert re.match(expected_output_regex, output, re.MULTILINE), 'stop_on output is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+            assert re.match(expected_output_regex, output, re.MULTILINE) is not None, 'stop_on output is bogus. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                  output)
 
 
