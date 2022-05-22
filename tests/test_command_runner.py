@@ -208,7 +208,7 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 1):
+        for round in range(0, 2500):
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
@@ -331,8 +331,7 @@ def test_deferred_command():
     Using deferred_command in order to run a command after a given timespan
     """
     test_filename = 'deferred_test_file'
-    if os.path.isfile(test_filename):
-        os.remove(test_filename)
+    assert os.path.isfile(test_filename) is False, 'Test file should not exist prior to test'
     deferred_command('echo test > {}'.format(test_filename), defer_time=5)
     assert os.path.isfile(test_filename) is False, 'File should not exist yet'
     sleep(6)
