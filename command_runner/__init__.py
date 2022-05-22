@@ -717,7 +717,7 @@ def command_runner(
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-251, message)
     except ValueError as exc:
-        message = to_encoding(exc, encoding, output)
+        message = exc
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message)
