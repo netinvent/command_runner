@@ -721,10 +721,10 @@ def command_runner(
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-251, message)
     except ValueError as exc:
-        message = exc
+        message = to_encoding(exc, encoding, output)
         logger.error(message)
         if stdout_destination == "file":
-            _stdout.write(message.encode(encoding, errors=errors))
+            _stdout.write(message)
         exit_code, output = (-250, message)
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
