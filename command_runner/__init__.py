@@ -273,7 +273,7 @@ def command_runner(
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
     method="monitor",  # type: str
-    min_resolution=0.05,  # type: float
+    check_interval=0.05,  # type: float
     stop_on=None,  # type: Callable
     process_callback=None,  # type Callable
     **kwargs  # type: Any
@@ -463,7 +463,7 @@ def command_runner(
 
             while True:
                 try:
-                    line = stdout_queue.get(timeout=min_resolution)
+                    line = stdout_queue.get(timeout=check_interval)
                 except queue.Empty:
                     pass
                 else:
@@ -483,7 +483,7 @@ def command_runner(
 
                 if stderr_destination != "stdout":
                     try:
-                        line = stderr_queue.get(timeout=min_resolution)
+                        line = stderr_queue.get(timeout=check_interval)
                     except queue.Empty:
                         pass
                     else:
@@ -539,7 +539,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            sleep(min_resolution)
+            sleep(check_interval)
 
     def _monitor_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -574,7 +574,7 @@ def command_runner(
             # Don't use process.wait() since it may deadlock on old Python versions
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
-                sleep(min_resolution)
+                sleep(check_interval)
                 try:
                     must_stop = stop_queue.get_nowait()
                 except queue.Empty:
@@ -602,7 +602,7 @@ def command_runner(
             # the thread could write to it, failing to register a timeout.
             # This workaround prevents reading the queue while the thread is still alive
             while thread.is_alive():
-                sleep(min_resolution)
+                sleep(check_interval)
 
             try:
                 must_stop = stop_queue.get_nowait()
