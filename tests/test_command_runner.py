@@ -75,7 +75,7 @@ def running_on_github_actions():
     return os.environ.get("RUNNING_ON_GITHUB_ACTIONS") == "true"  # bash 'true'
 
 
-def utest_standard_ping_with_encoding():
+def test_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
     """
@@ -84,7 +84,7 @@ def utest_standard_ping_with_encoding():
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
-def utest_standard_ping_without_encoding():
+def test_standard_ping_without_encoding():
     """
     Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
     This could only happen on python <3.6 since command_runner decides to use an encoding anyway
@@ -95,7 +95,7 @@ def utest_standard_ping_without_encoding():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def utest_timeout():
+def test_timeout():
     """
     Test command_runner with a timeout
     """
@@ -108,7 +108,7 @@ def utest_timeout():
         assert exit_code == -254, 'Exit code should be -254 on timeout with method {}'.format(method)
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
-def utest_timeout_with_subtree_killing():
+def test_timeout_with_subtree_killing():
     """
     Launch a subtree of long commands and see if timeout actually kills them in time
     """
@@ -128,7 +128,7 @@ def utest_timeout_with_subtree_killing():
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
 
-def utest_no_timeout():
+def test_no_timeout():
     """
     Test with setting timeout=None
     """
@@ -138,7 +138,7 @@ def utest_no_timeout():
         assert exit_code == 0, 'Without timeout, command should have run with method {}'.format(method)
 
 
-def utest_live_output():
+def test_live_output():
     """
     Test command_runner with live output to stdout
     """
@@ -147,7 +147,7 @@ def utest_live_output():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def utest_not_found():
+def test_not_found():
     """
     Test command_runner with an unexisting command
     """
@@ -157,7 +157,7 @@ def utest_not_found():
         assert exit_code == -253, 'Unknown command should trigger a -253 exit code with method {}'.format(method)
 
 
-def utest_file_output():
+def test_file_output():
     """
     Test commandr_runner with file output instead of stdout
     """
@@ -179,7 +179,7 @@ def utest_file_output():
         os.remove(stderr_filename)
 
 
-def utest_valid_exit_codes():
+def test_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
     """
@@ -188,7 +188,7 @@ def utest_valid_exit_codes():
         assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
 
 
-def utest_unix_only_split_command():
+def test_unix_only_split_command():
     """
     This test is specifically written when command_runner receives a str command instead of a list on unix
     """
@@ -198,7 +198,7 @@ def utest_unix_only_split_command():
             assert exit_code == 0, 'Non splitted command should not trigger an error with method {}'.format(method)
 
 
-def utest_create_no_window():
+def test_create_no_window():
     """
     Only used on windows, when we don't want to create a cmd visible windows
     """
@@ -207,7 +207,7 @@ def utest_create_no_window():
         assert exit_code == 0, 'Should have worked too with method {}'.format(method)
 
 
-def utest_read_file():
+def test_read_file():
     """
     Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
     This is a random failure detection test
@@ -257,7 +257,7 @@ def test_stop_on_argument():
                                                                                                  output)
 
 
-def utest_process_callback():
+def test_process_callback():
     def callback(process_id):
         global PROCESS_ID
         PROCESS_ID = process_id
@@ -269,7 +269,7 @@ def utest_process_callback():
         assert isinstance(PROCESS_ID, subprocess.Popen), 'callback did not work properly. PROCESS_ID="{}"'.format(PROCESS_ID)
 
 
-def utest_stream_callback():
+def test_stream_callback():
     global STREAM_OUTPUT
 
     def stream_callback(string):
@@ -350,7 +350,7 @@ def test_queue_output():
                     output)
 
 
-def utest_deferred_command():
+def test_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
     """
