@@ -340,13 +340,14 @@ def test_queue_output():
                     if line is None:
                         break
                     else:
-                        # On pypy 3.7, mutable object might be updated in thread but not in main program at the same time
-                        if is_pypy:
-                            gc.collect()
                         stream_output += line
 
 
             exit_code, output = thread_result.result()
+
+            # On pypy 3.7, mutable object might be uptodate in thread but not yet in main program
+            if is_pypy:
+                gc.collect()
 
             if method == 'poller':
                 assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
