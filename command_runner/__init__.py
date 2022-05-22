@@ -247,11 +247,7 @@ def kill_childs_mod(
                 logger.error(
                     "Could not properly kill process with pid {}: {}".format(
                         current_pid,
-                        to_encoding(
-                            exc.__str__(),
-                            "utf-8",
-                            "backslashreplace"
-                        ),
+                        to_encoding(exc.__str__(), "utf-8", "backslashreplace"),
                     )
                 )
                 raise
@@ -669,14 +665,10 @@ def command_runner(
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
-                if (
-                    stdout_destination
-                    in [
-                        "callback",
-                        "queue",
-                    ]
-                    or stderr_destination in ["callback", "queue"]
-                ):
+                if stdout_destination in [
+                    "callback",
+                    "queue",
+                ] or stderr_destination in ["callback", "queue"]:
                     raise ValueError(
                         'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
                     )
