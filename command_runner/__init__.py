@@ -51,21 +51,36 @@ except ImportError:
     import Queue as queue
 import threading
 
-# Python 2.7 compat fixes (missing typing and FileNotFoundError)
+# Python 2.7 compat fixes (missing typing)
 try:
     from typing import Union, Optional, List, Tuple, NoReturn, Any, Callable
 except ImportError:
     pass
+
+# Python 2.7 compat fixes (no concurrent futures)
+try:
+    from concurrent.futures import Future
+    from functools import wraps
+except ImportError:
+    # Python 2.7 just won't have concurrent.futures, so we just declare threaded and wraps in order to
+    # avoid NameError
+    def threaded(fn):
+        return fn
+    def wraps(fn):
+        return fn
+
+# Python 2.7 compat fixes (no FileNotFoundError class)
 try:
     # pylint: disable=E0601 (used-before-assignment)
     FileNotFoundError
 except NameError:
     # pylint: disable=W0622 (redefined-builtin)
     FileNotFoundError = IOError
+
+# python <= 3.3 compat fixes (missing TimeoutExpired class)
 try:
     TimeoutExpired = subprocess.TimeoutExpired
 except AttributeError:
-
     class TimeoutExpired(BaseException):
         """
         Basic redeclaration when subprocess.TimeoutExpired does not exist, python <= 3.3
@@ -128,6 +143,39 @@ class StopOnInterrupt(InterruptGetOutput):
     @property
     def output(self):
         return self._output
+
+
+### BEGIN DIRECT IMPORT FROM ofunctions.threading
+def call_with_future(fn, future, args, kwargs):
+    """
+    Threading a function with return info using Future
+    from https://stackoverflow.com/a/19846691/2635443
+
+    """
+    try:
+        result = fn(*args, **kwargs)
+        future.set_result(result)
+    except Exception as exc:
+        future.set_exception(exc)
+
+
+def threaded(fn):
+    """
+    @threaded wrapper in order to thread any function
+
+    @wraps decorator sole purpose is for function.__name__ to be the real function
+    instead of 'wrapper'
+
+    """
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        future = Future()
+        threading.Thread(target=call_with_future, args=(fn, future, args, kwargs)).start()
+        return future
+
+    return wrapper
+### END DIRECT IMPORT FROM ofunctions.threading
 
 
 logger = getLogger(__intname__)
@@ -764,6 +812,17 @@ def command_runner(
 
     logger.debug(output)
     return exit_code, output
+
+
+if sys.version_info[0] >= 3:
+    @threaded
+    def command_runner_threaded(*args, **kwargs):
+        """
+        Threaded version of command_runner_threaded which returns concurrent.Future result
+        Not available for Python 2.7
+        """
+        return command_runner(*args, **kwargs)
+
 
 
 def deferred_command(command, defer_time=300):
