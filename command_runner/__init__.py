@@ -135,9 +135,9 @@ PIPE = subprocess.PIPE
 
 
 def to_encoding(
-        process_output,  # type: Union[str, bytes]
-        encoding,  # type: str
-        errors,  # type: str
+    process_output,  # type: Union[str, bytes]
+    encoding,  # type: str
+    errors,  # type: str
 ):
     # type: (...) -> str
     """
@@ -246,7 +246,11 @@ def kill_childs_mod(
             except OSError as exc:
                 logger.error(
                     "Could not properly kill process {} with pid {}: {}".format(
-                        current_pid, to_encoding(exc.__str__(), 'utf-8', )
+                        current_pid,
+                        to_encoding(
+                            exc.__str__(),
+                            "utf-8",
+                        ),
                     )
                 )
                 raise
@@ -710,7 +714,9 @@ def command_runner(
         )
         logger.error(output)
     except FileNotFoundError as exc:
-        message = 'Command "{}" failed, file not found: {}'.format(command,  to_encoding(exc.__str__(), encoding, errors))
+        message = 'Command "{}" failed, file not found: {}'.format(
+            command, to_encoding(exc.__str__(), encoding, errors)
+        )
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
@@ -718,7 +724,9 @@ def command_runner(
     # On python 2.7, OSError is also raised when file is not found (no FileNotFoundError)
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
-        message = 'Command "{}" failed because of OS: {}'.format(command, to_encoding(exc.__str__(), encoding, errors))
+        message = 'Command "{}" failed because of OS: {}'.format(
+            command, to_encoding(exc.__str__(), encoding, errors)
+        )
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
@@ -749,7 +757,9 @@ def command_runner(
     # pylint: disable=W0703
     except Exception as exc:
         logger.error(
-            'Command "{}" failed for unknown reasons: {}'.format(command,  to_encoding(exc.__str__(), encoding, errors)),
+            'Command "{}" failed for unknown reasons: {}'.format(
+                command, to_encoding(exc.__str__(), encoding, errors)
+            ),
         )
         logger.debug("Error:", exc_info=True)
         exit_code, output = (-255, to_encoding(exc.__str__(), encoding, errors))
