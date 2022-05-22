@@ -231,8 +231,8 @@ def kill_childs_mod(
             else:
                 process.kill()
 
+    current_pid = pid if pid is not None else os.getpid()
     try:
-        current_pid = pid if pid is not None else os.getpid()
         current_process = psutil.Process(current_pid)
     # psutil.NoSuchProcess might not be available, let's be broad
     # pylint: disable=W0703
@@ -245,7 +245,7 @@ def kill_childs_mod(
                 )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
             except OSError as exc:
                 logger.error(
-                    "Could not properly kill process {} with pid {}: {}".format(
+                    "Could not properly kill process with pid {}: {}".format(
                         current_pid,
                         to_encoding(
                             exc.__str__(),
