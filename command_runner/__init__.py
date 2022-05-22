@@ -734,14 +734,14 @@ def command_runner(
         exit_code, output = (-254, message)
     except StopOnInterrupt as exc:
         message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
-            command, exc.output
+            command, to_encoding(exc.output, encoding, errors)
         )
         logger.info(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
         exit_code, output = (-251, message)
     except ValueError as exc:
-        message = exc
+        message = to_encoding(exc.__str__(), encoding, errors)
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message)
