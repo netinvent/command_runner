@@ -517,8 +517,9 @@ def command_runner(
                 stderr_read_thread.daemon = True  # thread dies with the program
                 stderr_read_thread.start()
 
+            # Check which queues we need to read
             stdout_read_queue = True
-            if stderr_destination != "stderr":
+            if stderr_destination != "stdout":
                 stderr_read_queue = True
             else:
                 stderr_read_queue = False
@@ -828,6 +829,7 @@ def command_runner(
 
 
 if sys.version_info[0] >= 3:
+
     @threaded
     def command_runner_threaded(*args, **kwargs):
         """
