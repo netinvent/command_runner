@@ -594,11 +594,11 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                must_stop['timeout'] = True
+                must_stop["timeout"] = True
                 break
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                must_stop['stop_on'] = True
+                must_stop["stop_on"] = True
                 break
             if process.poll() is not None:
                 break
@@ -620,8 +620,7 @@ def command_runner(
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
         # Let's create a queue to get the timeout thread response on a deterministic way
-        must_stop = {'timeout': False,
-                     'stop_on': False}
+        must_stop = {"timeout": False, "stop_on": False}
 
         thread = threading.Thread(
             target=_timeout_check_thread,
@@ -638,7 +637,7 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(check_interval)
-                if must_stop['timeout'] or must_stop['stop_on']:
+                if must_stop["timeout"] or must_stop["stop_on"]:
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
@@ -660,13 +659,13 @@ def command_runner(
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
             # This workaround prevents reading the queue while the thread is still alive
-            #while thread.is_alive():
+            # while thread.is_alive():
             #    sleep(check_interval)
             gc.collect()
 
-            if must_stop['timeout']:
+            if must_stop["timeout"]:
                 raise TimeoutExpired(process, timeout, process_output)
-            elif must_stop['stop_on']:
+            elif must_stop["stop_on"]:
                 raise StopOnInterrupt(process_output)
             return exit_code, process_output
         except KeyboardInterrupt:
