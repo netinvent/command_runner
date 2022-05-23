@@ -402,7 +402,7 @@ def test_double_queue_threaded_stop():
             read_queue = False
             print('Thread is done')
         try:
-            stdout_line = stdout_queue.get(block=False)
+            stdout_line = stdout_queue.get(timeout=0.1)
         except queue.Empty:
             pass
         else:
@@ -413,7 +413,7 @@ def test_double_queue_threaded_stop():
                 print('STDOUT:', stdout_line)
 
         try:
-            stderr_line = stderr_queue.get(block=False)
+            stderr_line = stderr_queue.get(timeout=0.1)
         except queue.Empty:
             pass
         else:
@@ -422,7 +422,6 @@ def test_double_queue_threaded_stop():
                 print('stderr is finished')
             else:
                 print('STDERR:', stderr_line)
-        sleep(0.1)
 
     exit_code, output = thread_result.result()
     assert exit_code == 0, 'We did not succeed in running the thread'

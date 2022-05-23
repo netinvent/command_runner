@@ -266,7 +266,7 @@ while read_queue or read_stdout or read_stderr:
     if thread_result.done():
         read_queue = False
     try:
-        stdout_line = stdout_queue.get(block=False)
+        stdout_line = stdout_queue.get(timeout=0.1)
     except queue.Empty:
         pass
     else:
@@ -276,7 +276,7 @@ while read_queue or read_stdout or read_stderr:
             print('STDOUT:', stdout_line)
 
     try:
-        stderr_line = stderr_queue.get(block=False)
+        stderr_line = stderr_queue.get(timeout=0.1)
     except queue.Empty:
         pass
     else:
@@ -286,8 +286,6 @@ while read_queue or read_stdout or read_stderr:
             print('STDERR:', stderr_line)
     
     # ADD YOUR LIVE CODE HERE
-    
-    sleep(0.1)
 
 exit_code, output = thread_result.result()
 assert exit_code == 0, 'We did not succeed in running the thread'
