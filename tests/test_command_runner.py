@@ -91,6 +91,7 @@ def test_standard_ping_with_encoding():
     Test command_runner with a standard ping and encoding parameter
     """
     for method in methods:
+        print('method={}'.format(method))
         exit_code, output = command_runner(PING_CMD, encoding=ENCODING, method=method)
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
@@ -431,6 +432,7 @@ def test_powershell_output():
     Parts from windows_tools.powershell are used here
     """
 
+    powershell_interpreter = None
     # Try to guess powershell path if no valid path given
     interpreter_executable = "powershell.exe"
     for syspath in ["sysnative", "system32"]:
@@ -474,7 +476,6 @@ def test_powershell_output():
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
-    test_queue_output()
     test_standard_ping_with_encoding()
     test_standard_ping_without_encoding()
     test_timeout()
