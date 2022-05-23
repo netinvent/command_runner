@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0-rc"
-__build__ = "2022052201"
+__version__ = "1.4.0-rc2"
+__build__ = "2022052301"
 __compat__ = "python2.7+"
 
 import io
@@ -504,20 +504,25 @@ def command_runner(
                 raise StopOnInterrupt(output)
 
         try:
-            read_thread = threading.Thread(
+            stdout_read_thread = threading.Thread(
                 target=_read_pipe, args=(process.stdout, stdout_queue)
             )
-            read_thread.daemon = True  # thread dies with the program
-            read_thread.start()
+            stdout_read_thread.daemon = True  # thread dies with the program
+            stdout_read_thread.start()
 
             if stderr_destination != "stdout":
-                read_thread = threading.Thread(
+                stderr_read_thread = threading.Thread(
                     target=_read_pipe, args=(process.stderr, stderr_queue)
                 )
-                read_thread.daemon = True  # thread dies with the program
-                read_thread.start()
+                stderr_read_thread.daemon = True  # thread dies with the program
+                stderr_read_thread.start()
 
-            while True:
+            stdout_read_queue = True
+            if stderr_destination != "stderr":
+                stderr_read_queue = True
+            else:
+                stderr_read_queue = False
+            while stdout_read_queue or stderr_read_queue:
                 try:
                     line = stdout_queue.get(timeout=check_interval)
                 except queue.Empty:
@@ -526,7 +531,7 @@ def command_runner(
                     if line is None:
                         if stdout_destination == "queue":
                             stdout.put(None)
-                        break
+                        stdout_read_queue = False
                     else:
                         line = to_encoding(line, encoding, errors)
                         if stdout_destination == "callback":
@@ -546,7 +551,7 @@ def command_runner(
                         if line is None:
                             if stderr_destination == "queue":
                                 stderr.put(None)
-                            break
+                            stderr_read_queue = False
                         else:
                             line = to_encoding(line, encoding, errors)
                             if stderr_destination == "callback":
@@ -823,7 +828,6 @@ def command_runner(
 
 
 if sys.version_info[0] >= 3:
-
     @threaded
     def command_runner_threaded(*args, **kwargs):
         """
