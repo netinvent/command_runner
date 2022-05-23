@@ -54,13 +54,11 @@ methods = ['monitor', 'poller']
 if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
-    PING_CMD_REDIR = PING_CMD + ' 1>&2'
     # Make sure we run the failure command first so end result is okay
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
-    PING_CMD_REDIR = 'ping 127.0.0.1 -c 4 1>&2'
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
     # TODO shlex.split(command, posix=True) test for Linux
 
@@ -298,7 +296,7 @@ def test_stream_callback():
             STREAM_OUTPUT = ""
             try:
                 print('Method={}, stream={}, output=callback'.format(method, stream))
-                exit_code, output = command_runner(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+                exit_code, output = command_runner(PING_CMD_AND_FAILURE, shell=True, method=method, **stream_args)
             except ValueError:
                 if method == 'poller':
                     assert False, 'ValueError should not be produced in poller mode.'
@@ -329,7 +327,7 @@ def test_queue_output():
             stream_args = {stream: output_queue}
             output_queue.queue.clear()
             print('Method={}, stream={}, output=queue'.format(method, stream))
-            thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+            thread_result = command_runner_threaded(PING_CMD_AND_FAILURE, shell=True, method=method, **stream_args)
 
             read_queue = True
             while read_queue:
