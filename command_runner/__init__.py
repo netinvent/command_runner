@@ -22,7 +22,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.4.0-rc2"
-__build__ = "2022052301"
+__build__ = "2022052401"
 __compat__ = "python2.7+"
 
 import io
@@ -481,10 +481,6 @@ def command_runner(
 
         begin_time = datetime.now()
         output = ""
-        stdout_queue = queue.Queue()
-
-        if stderr_destination != "stdout":
-            stderr_queue = queue.Queue()
 
         def __check_timeout(
             begin_time,  # type: datetime.timestamp
@@ -504,28 +500,32 @@ def command_runner(
                 raise StopOnInterrupt(output)
 
         try:
-            stdout_read_thread = threading.Thread(
-                target=_read_pipe, args=(process.stdout, stdout_queue)
-            )
-            stdout_read_thread.daemon = True  # thread dies with the program
-            stdout_read_thread.start()
+            if stdout_destination is not None:
+                stdout_read_queue = True
+                stdout_queue = queue.Queue()
+                stdout_read_thread = threading.Thread(
+                    target=_read_pipe, args=(process.stdout, stdout_queue)
+                )
+                stdout_read_thread.daemon = True  # thread dies with the program
+                stdout_read_thread.start()
+            else:
+                stdout_read_queue = False
 
+            # Don't bother to read stderr if we redirect to stdout
             if stderr_destination != "stdout":
+                stderr_read_queue = True
+                stderr_queue = queue.Queue()
                 stderr_read_thread = threading.Thread(
                     target=_read_pipe, args=(process.stderr, stderr_queue)
                 )
                 stderr_read_thread.daemon = True  # thread dies with the program
                 stderr_read_thread.start()
-
-            # Check which queues we need to read
-            stdout_read_queue = True
-            if stderr_destination != "stdout":
-                stderr_read_queue = True
             else:
                 stderr_read_queue = False
+
             while stdout_read_queue or stderr_read_queue:
                 try:
-                    line = stdout_queue.get(block=False)
+                    line = stdout_queue.get(timeout=check_interval)
                 except queue.Empty:
                     pass
                 else:
@@ -543,9 +543,9 @@ def command_runner(
                             sys.stdout.write(line)
                         output += line
 
-                if stderr_destination != "stdout":
+                if stderr_read_queue:
                     try:
-                        line = stderr_queue.get(block=False)
+                        line = stderr_queue.get(timeout=check_interval)
                     except queue.Empty:
                         pass
                     else:
@@ -562,8 +562,8 @@ def command_runner(
                             if live_output:
                                 sys.stderr.write(line)
                             output += line
+
                 __check_timeout(begin_time, timeout)
-                sleep(check_interval)
 
             # Make sure we wait for the process to terminate, even after
             # output_queue has finished sending data, so we catch the exit code
