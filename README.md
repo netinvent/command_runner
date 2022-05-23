@@ -1,5 +1,5 @@
 # command_runner
-## A python tool for rapid platform agnostic command execution and UAC/sudo elevation
+## A python tool for rapid platform agnostic command execution, live stdout/stderr output capture, and UAC/sudo elevation
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/netinvent/command_runner.svg)](http://isitmaintained.com/project/netinvent/command_runner "Percentage of issues still open")
@@ -13,7 +13,7 @@
 command_runner's purpose is to run external commands from python, just like subprocess on which it relies, 
 while solving various problems a developer may face among:
    - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function without encoding / timeout hassle
-   - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get live output into your application
+   - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get output into your application while commands are running
    - Callback to optional stop check so we can stop execution from outside command_runner
    - Callback with optional process information so we get to control the process from outside command_runner
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
@@ -98,9 +98,11 @@ exit_code, output = command_runner(command, encoding='unicode_escape')
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
 
-#### On the fly (interactive) output
+#### On the fly (interactive screen) output
 
-command_runner can output a command output on the fly to stdout, eg show output during execution.
+**Note: for live output capture and threading, see stream redirection. If you want to run your application while command_runner gives back command output, the best way to go is queues / callbacks.**
+
+command_runner can output a command output on the fly to stdout, eg show output on screen during execution.
 This is helpful when the command is long, and we need to know the output while execution is ongoing.
 It is also helpful in order to catch partial command output when timeout is reached or a CTRL+C signal is received.
 Example:
@@ -178,20 +180,23 @@ command_runner can redirect stdout and/or stderr streams to different outputs:
  - files
  - queues
  - callback functions
- 
+
 Unless an output redirector is given for `stderr` argument, stderr will be redirected to `stdout` stream.
 Note that both queues and callback function redirectors require `poller` method and will fail if method is not set.
 
 Possible output redirection options are:
 
 - subprocess pipes
+
 By default, stdout writes into a subprocess.PIPE which is read by command_runner and returned as `output` variable.
 You may also pass any other subprocess.PIPE int values to `stdout` or `stderr` arguments.
 
 - /dev/null or NUL
+
 If `stdout=False` and/or `stderr=False` argument(s) are given, command output will not be saved.
 
 - files
+
 Giving `stdout` and/or `stderr` arguments a string, `command_runner` will consider the string to be a file path where stream output will be written live.
 Example (of course this also works with unix paths):
 
@@ -200,16 +205,26 @@ from command_runner import command_runner
 exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error', shell=True)
 ```
 
-- queues:
-Queue will be filled up by command_runner.
+Note that the output files will be encoded by default in UTF-8 for Unix and CP437 for windows.
+
+You can override those encodings by using optional argument `encoding='my-encoding'`.
+
+Opening a file with the wrong encoding (especially opening a CP437 encoded file on Windows with UTF-8 coded might endup with UnicodedecodeError.)
+
+- queues
+
+Queue(s) will be filled up by command_runner.
+
 In order to keep your program "live", we'll use the threaded version of command_runner which is basically the same except it returns a future result instead of a tuple.
+
 Note: With all the best will, there's no good way to achieve this under Python 2.7 without using more queues, so the threaded version is only compatible with Python 3.3+.
-For Python 2.7, you must create your thread and queue reader yourself (see footnote).
-Example:
+
+For Python 2.7, you must create your thread and queue reader yourself (see footnote for a Python 2.7 comaptible example).
+
+Threaded command_runner plus queue example:
 
 ```python
 import queue
-from time import sleep
 from command_runner import command_runner_threaded
 
 output_queue = queue.Queue()
@@ -233,6 +248,50 @@ while read_queue:
 
 # Now we may get exit_code and output since result has become available at this point
 exit_code, output = thread_result.result()
+```
+You might also want to read both stdout and stderr queues. In that case, you can create a read loop just like in the following example.
+Here we're reading both queues in one loop, so we need to observe a couple of conditions before stopping the loop, in order to catch all queue output:
+```python
+import queue
+from time import sleep
+from command_runner import command_runner_threaded
+
+stdout_queue = queue.Queue()
+stderr_queue = queue.Queue()
+thread_result = command_runner_threaded('ping 127.0.0.1', method='poller', shell=True, stdout=stdout_queue, stderr=stderr_queue)
+
+read_queue = True
+read_stdout = read_stderr = True
+while read_queue or read_stdout or read_stderr:
+    if thread_result.done():
+        read_queue = False
+    try:
+        stdout_line = stdout_queue.get(block=False)
+    except queue.Empty:
+        pass
+    else:
+        if stdout_line is None:
+            read_stdout = False
+        else:
+            print('STDOUT:', stdout_line)
+
+    try:
+        stderr_line = stderr_queue.get(block=False)
+    except queue.Empty:
+        pass
+    else:
+        if stderr_line is None:
+            print('stderr is finished')
+        else:
+            print('STDERR:', stderr_line)
+    
+    # ADD YOUR LIVE CODE HERE
+    
+    sleep(0.1)
+
+exit_code, output = thread_result.result()
+assert exit_code == 0, 'We did not succeed in running the thread'
+
 ```
 
 - callback functions
