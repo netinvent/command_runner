@@ -185,6 +185,15 @@ def test_file_output():
         assert os.path.isfile(stdout_filename), 'Log file does not exist with method {}'.format(method)
         with open(stdout_filename, 'r', encoding=ENCODING) as file_handle:
             output = file_handle.read()
+
+        # We don't have encoding argument in Python 2, yet we need it for PyPy
+        if sys.version_info[0] < 3:
+            with open(stdout_filename, 'r') as file_handle:
+                output = file_handle.read()
+        else:
+            with open(stdout_filename, 'r', encoding=ENCODING) as file_handle:
+                output = file_handle.read()
+
         assert os.path.isfile(stderr_filename), 'stderr log file does not exist with method {}'.format(method)
         assert exit_code == -254, 'Exit code should be -254 for timeouts with method {}'.format(method)
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
@@ -229,8 +238,14 @@ def test_read_file():
     This is a random failure detection test
     """
     test_filename = 'README.md'
-    with open(test_filename, 'r', encoding=ENCODING) as file:
-        file_content = file.read()
+
+    # We don't have encoding argument in Python 2, yet we need it for PyPy
+    if sys.version_info[0] < 3:
+        with open(test_filename, 'r') as file:
+            file_content = file.read()
+    else:
+        with open(test_filename, 'r', encoding=ENCODING) as file:
+            file_content = file.read()
 
     for method in methods:
         for round in range(0, 2500):
