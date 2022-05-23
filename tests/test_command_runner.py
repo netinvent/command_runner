@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052202'
+__build__ = '2022052301'
 
 
 import re
@@ -55,10 +55,13 @@ if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
     PING_CMD_REDIR = PING_CMD + ' 1>&2'
+    # Make sure we run the failure command first so end result is okay
+    PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
     PING_CMD_REDIR = 'ping 127.0.0.1 -c 4 1>&2'
+    PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
     # TODO shlex.split(command, posix=True) test for Linux
 
 ELAPSED_TIME = timestamp(datetime.now())
@@ -360,6 +363,54 @@ def test_queue_output():
                     output)
 
 
+def test_double_queue_threaded_stop():
+    """
+    Use both stdout and stderr queues and make em stop
+    """
+
+    if sys.version_info[0] < 3:
+        print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
+        return
+
+    stdout_queue = queue.Queue()
+    stderr_queue = queue.Queue()
+    thread_result = command_runner_threaded(
+        PING_CMD_AND_FAILURE, method='poller',
+        shell=True, stdout=stdout_queue, stderr=stderr_queue)
+
+    print('Begin to read queues')
+    read_queue = True
+    read_stdout = read_stderr = True
+    while read_queue or read_stdout or read_stderr:
+        if thread_result.done():
+            read_queue = False
+            print('Thread is done')
+        try:
+            stdout_line = stdout_queue.get(timeout=0.1)
+        except queue.Empty:
+            pass
+        else:
+            if stdout_line is None:
+                read_stdout = False
+                print('stdout is finished')
+            else:
+                print('STDOUT:', stdout_line)
+
+        try:
+            stderr_line = stderr_queue.get(timeout=0.1)
+        except queue.Empty:
+            pass
+        else:
+            if stderr_line is None:
+                read_stderr = False
+                print('stderr is finished')
+            else:
+                print('STDERR:', stderr_line)
+
+    exit_code, output = thread_result.result()
+    assert exit_code == 0, 'We did not succeed in running the thread'
+
+
 def test_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
@@ -441,5 +492,6 @@ if __name__ == "__main__":
     test_stop_on_argument()
     test_process_callback()
     test_queue_output()
+    test_double_queue_threaded_stop()
     test_deferred_command()
     test_powershell_output()
