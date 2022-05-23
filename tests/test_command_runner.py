@@ -183,8 +183,6 @@ def test_file_output():
         print('The following command should timeout')
         exit_code, output = command_runner(PING_CMD, timeout=1, stdout=stdout_filename, stderr=stderr_filename, method=method)
         assert os.path.isfile(stdout_filename), 'Log file does not exist with method {}'.format(method)
-        with open(stdout_filename, 'r', encoding=ENCODING) as file_handle:
-            output = file_handle.read()
 
         # We don't have encoding argument in Python 2, yet we need it for PyPy
         if sys.version_info[0] < 3:
