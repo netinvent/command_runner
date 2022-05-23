@@ -27,6 +27,7 @@ __compat__ = "python2.7+"
 
 import io
 import os
+import gc
 import shlex
 import subprocess
 import sys
@@ -580,7 +581,7 @@ def command_runner(
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
-        stop_queue,  # type: queue.Queue
+        must_stop,  # type: dict
     ):
         # type: (...) -> None
 
@@ -593,11 +594,11 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                stop_queue.put("T")  # T stands for TIMEOUT REACHED
+                must_stop['timeout'] = True
                 break
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                stop_queue.put("S")  # S stands for STOP_ON RETURNED TRUE
+                must_stop['stop_on'] = True
                 break
             if process.poll() is not None:
                 break
@@ -619,12 +620,12 @@ def command_runner(
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
         # Let's create a queue to get the timeout thread response on a deterministic way
-        stop_queue = queue.Queue()
-        must_stop = False
+        must_stop = {'timeout': False,
+                     'stop_on': False}
 
         thread = threading.Thread(
             target=_timeout_check_thread,
-            args=(process, timeout, stop_queue),
+            args=(process, timeout, must_stop),
         )
         thread.setDaemon(True)
         thread.start()
@@ -637,11 +638,7 @@ def command_runner(
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
                 sleep(check_interval)
-                try:
-                    must_stop = stop_queue.get_nowait()
-                except queue.Empty:
-                    pass
-                else:
+                if must_stop['timeout'] or must_stop['stop_on']:
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
@@ -663,21 +660,14 @@ def command_runner(
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
             # This workaround prevents reading the queue while the thread is still alive
-            while thread.is_alive():
-                sleep(check_interval)
+            #while thread.is_alive():
+            #    sleep(check_interval)
+            gc.collect()
 
-            try:
-                must_stop = stop_queue.get_nowait()
-            except queue.Empty:
-                pass
-            if must_stop == "T":
+            if must_stop['timeout']:
                 raise TimeoutExpired(process, timeout, process_output)
-            elif must_stop == "S":
+            elif must_stop['stop_on']:
                 raise StopOnInterrupt(process_output)
-            elif must_stop is not False:
-                # stop_queue should never have values other than "TIMEOUT" or "STOP"
-                # Nevertheless, if a read error occured, we still should stop execution
-                raise EnvironmentError
             return exit_code, process_output
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(process_output)
