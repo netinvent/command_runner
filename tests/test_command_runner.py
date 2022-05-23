@@ -183,7 +183,7 @@ def test_file_output():
         print('The following command should timeout')
         exit_code, output = command_runner(PING_CMD, timeout=1, stdout=stdout_filename, stderr=stderr_filename, method=method)
         assert os.path.isfile(stdout_filename), 'Log file does not exist with method {}'.format(method)
-        with open(stdout_filename, 'r') as file_handle:
+        with open(stdout_filename, 'r', encoding=ENCODING) as file_handle:
             output = file_handle.read()
         assert os.path.isfile(stderr_filename), 'stderr log file does not exist with method {}'.format(method)
         assert exit_code == -254, 'Exit code should be -254 for timeouts with method {}'.format(method)
@@ -229,7 +229,7 @@ def test_read_file():
     This is a random failure detection test
     """
     test_filename = 'README.md'
-    with open(test_filename, 'r') as file:
+    with open(test_filename, 'r', encoding=ENCODING) as file:
         file_content = file.read()
 
     for method in methods:
