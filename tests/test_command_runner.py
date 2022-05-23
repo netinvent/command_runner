@@ -336,45 +336,47 @@ def test_queue_output():
         print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
         return
 
-    for stream in streams:
-        output_queue = queue.Queue()
-        for method in methods:
-            stream_output = ""
-            stream_args = {stream: output_queue}
-            output_queue.queue.clear()
-            print('Method={}, stream={}, output=queue'.format(method, stream))
-            thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+    for range in (0, 50):
+        for stream in streams:
+            output_queue = queue.Queue()
+            for method in methods:
+                stream_output = ""
+                stream_args = {stream: output_queue}
+                output_queue.queue.clear()
+                print('Method={}, stream={}, output=queue'.format(method, stream))
+                thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
 
-            read_queue = True
-            while read_queue:
-                if thread_result.done():
-                    read_queue = False
-                try:
-                    line = output_queue.get(timeout=0.1)
-                except queue.Empty:
-                    pass
-                else:
-                    if line is None:
-                        break
+                read_queue = True
+                while read_queue:
+                    if thread_result.done():
+                        read_queue = False
+                    try:
+                        line = output_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        pass
                     else:
-                        stream_output += line
+                        if line is None:
+                            break
+                        else:
+                            stream_output += line
 
 
-            exit_code, output = thread_result.result()
+                exit_code, output = thread_result.result()
 
-            # On pypy 3.7, mutable object might be uptodate in thread but not yet in main program
-            if is_pypy:
-                gc.collect()
+                # On pypy 3.7, mutable object might be uptodate in thread but not yet in main program
+                if is_pypy:
+                    print("RUNNING ON PYPY")
+                    gc.collect()
 
-            if method == 'poller':
-                assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
-                                                                                                      output)
-                # Since we redirect STDOUT to STDERR
-                assert stream_output == output, 'Callback stream should contain same result as output'
-            else:
-                assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
-                    method, exit_code,
-                    output)
+                if method == 'poller':
+                    assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
+                                                                                                          output)
+                    # Since we redirect STDOUT to STDERR
+                    assert stream_output == output, 'Queue output should contain same result as output'
+                else:
+                    assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
+                        method, exit_code,
+                        output)
 
 
 def test_double_queue_threaded_stop():
