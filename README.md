@@ -281,7 +281,7 @@ while read_queue or read_stdout or read_stderr:
         pass
     else:
         if stderr_line is None:
-            print('stderr is finished')
+            read_sterr = False
         else:
             print('STDERR:', stderr_line)
     
