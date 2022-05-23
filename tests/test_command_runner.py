@@ -22,16 +22,8 @@ __build__ = '2022052301'
 
 
 import re
-import platform
+import gc
 from command_runner import *
-
-
-# PyPy fix for thread shared mutable objects not being updated out of thread in time
-if platform.python_implementation().lower() == 'pypy':
-    is_pypy = True
-    import gc
-else:
-    is_pypy = False
 
 
 # Python 2.7 compat where datetime.now() does not have .timestamp() method
@@ -349,9 +341,10 @@ def test_queue_output():
 
             exit_code, output = thread_result.result()
 
-            # On pypy 3.7, mutable object might be uptodate in thread but not yet in main program
-            if is_pypy:
-                gc.collect()
+            # On pypy, mutable objecst might be uptodate in thread but not yet in main program
+            # This may also happen sometimes in cpython (seen on github actions ubuntu 20.04 with python 3.8)
+            # Let's be sure to call the garbage collector
+            gc.collect()
 
             if method == 'poller':
                 assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
