@@ -233,7 +233,7 @@ def test_read_file():
         file_content = file.read()
 
     for method in methods:
-        for round in range(0, 2500):
+        for round in range(0, 1):
             print('Comparaison round {} with method {}'.format(round, method))
             if os.name == 'nt':
                 exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
@@ -387,7 +387,7 @@ def test_double_queue_threaded_stop():
             read_queue = False
             print('Thread is done')
         try:
-            stdout_line = stdout_queue.get(timeout=0.1)
+            stdout_line = stdout_queue.get(block=False)
         except queue.Empty:
             pass
         else:
@@ -398,7 +398,7 @@ def test_double_queue_threaded_stop():
                 print('STDOUT:', stdout_line)
 
         try:
-            stderr_line = stderr_queue.get(timeout=0.1)
+            stderr_line = stderr_queue.get(block=False)
         except queue.Empty:
             pass
         else:
@@ -407,6 +407,7 @@ def test_double_queue_threaded_stop():
                 print('stderr is finished')
             else:
                 print('STDERR:', stderr_line)
+        sleep(0.1)
 
     exit_code, output = thread_result.result()
     assert exit_code == 0, 'We did not succeed in running the thread'

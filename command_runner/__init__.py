@@ -525,7 +525,7 @@ def command_runner(
                 stderr_read_queue = False
             while stdout_read_queue or stderr_read_queue:
                 try:
-                    line = stdout_queue.get(timeout=check_interval)
+                    line = stdout_queue.get(block=False)
                 except queue.Empty:
                     pass
                 else:
@@ -545,7 +545,7 @@ def command_runner(
 
                 if stderr_destination != "stdout":
                     try:
-                        line = stderr_queue.get(timeout=check_interval)
+                        line = stderr_queue.get(block=False)
                     except queue.Empty:
                         pass
                     else:
@@ -563,6 +563,7 @@ def command_runner(
                                 sys.stderr.write(line)
                             output += line
                 __check_timeout(begin_time, timeout)
+                sleep(check_interval)
 
             # Make sure we wait for the process to terminate, even after
             # output_queue has finished sending data, so we catch the exit code
