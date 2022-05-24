@@ -88,7 +88,7 @@ def running_on_github_actions():
     return os.environ.get("RUNNING_ON_GITHUB_ACTIONS") == "true"  # bash 'true'
 
 
-def test_standard_ping_with_encoding():
+def disabled_test_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
     """
@@ -99,7 +99,7 @@ def test_standard_ping_with_encoding():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_standard_ping_without_encoding():
+def disabled_test_standard_ping_without_encoding():
     """
     Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
     This could only happen on python <3.6 since command_runner decides to use an encoding anyway
@@ -110,7 +110,7 @@ def test_standard_ping_without_encoding():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_timeout():
+def disabled_test_timeout():
     """
     Test command_runner with a timeout
     """
@@ -124,7 +124,7 @@ def test_timeout():
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
 
-def test_timeout_with_subtree_killing():
+def disabled_test_timeout_with_subtree_killing():
     """
     Launch a subtree of long commands and see if timeout actually kills them in time
     """
@@ -144,7 +144,7 @@ def test_timeout_with_subtree_killing():
         assert 'Timeout' in output, 'Output should have timeout with method {}'.format(method)
 
 
-def test_no_timeout():
+def disabled_test_no_timeout():
     """
     Test with setting timeout=None
     """
@@ -154,7 +154,7 @@ def test_no_timeout():
         assert exit_code == 0, 'Without timeout, command should have run with method {}'.format(method)
 
 
-def test_live_output():
+def disabled_test_live_output():
     """
     Test command_runner with live output to stdout
     """
@@ -163,7 +163,7 @@ def test_live_output():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_not_found():
+def disabled_test_not_found():
     """
     Test command_runner with an unexisting command
     """
@@ -173,7 +173,7 @@ def test_not_found():
         assert exit_code == -253, 'Unknown command should trigger a -253 exit code with method {}'.format(method)
 
 
-def test_file_output():
+def disabled_test_file_output():
     """
     Test commandr_runner with file output instead of stdout
     """
@@ -202,7 +202,7 @@ def test_file_output():
         os.remove(stderr_filename)
 
 
-def test_valid_exit_codes():
+def disabled_test_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
     """
@@ -211,7 +211,7 @@ def test_valid_exit_codes():
         assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
 
 
-def test_unix_only_split_command():
+def disabled_test_unix_only_split_command():
     """
     This test is specifically written when command_runner receives a str command instead of a list on unix
     """
@@ -221,7 +221,7 @@ def test_unix_only_split_command():
             assert exit_code == 0, 'Non splitted command should not trigger an error with method {}'.format(method)
 
 
-def test_create_no_window():
+def disabled_test_create_no_window():
     """
     Only used on windows, when we don't want to create a cmd visible windows
     """
@@ -230,7 +230,7 @@ def test_create_no_window():
         assert exit_code == 0, 'Should have worked too with method {}'.format(method)
 
 
-def test_read_file():
+def disabled_test_read_file():
     """
     Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
     This is a random failure detection test
@@ -259,7 +259,7 @@ def test_read_file():
             assert file_content == output, 'Round {} File content and output are not identical, method={}'.format(round, method)
 
 
-def test_stop_on_argument():
+def disabled_test_stop_on_argument():
     expected_output_regex = "Command .* was stopped because stop_on function returned True. Original output was:"
     def stop_on():
         """
@@ -286,7 +286,7 @@ def test_stop_on_argument():
                                                                                                  output)
 
 
-def test_process_callback():
+def disabled_test_process_callback():
     def callback(process_id):
         global PROCESS_ID
         PROCESS_ID = process_id
@@ -298,7 +298,7 @@ def test_process_callback():
         assert isinstance(PROCESS_ID, subprocess.Popen), 'callback did not work properly. PROCESS_ID="{}"'.format(PROCESS_ID)
 
 
-def test_stream_callback():
+def disabled_test_stream_callback():
     global STREAM_OUTPUT
 
     def stream_callback(string):
@@ -327,7 +327,7 @@ def test_stream_callback():
                                                                                                      output)
 
 
-def test_queue_output():
+def disabled_test_queue_output():
     """
     Thread command runner and get it's output queue
     """
@@ -380,7 +380,7 @@ def test_queue_output():
                         output)
 
 
-def test_double_queue_threaded_stop():
+def disabled_test_double_queue_threaded_stop():
     """
     Use both stdout and stderr queues and make em stop
     """
@@ -428,7 +428,7 @@ def test_double_queue_threaded_stop():
     assert exit_code == 0, 'We did not succeed in running the thread'
 
 
-def test_deferred_command():
+def disabled_test_deferred_command():
     """
     Using deferred_command in order to run a command after a given timespan
     """
@@ -442,7 +442,7 @@ def test_deferred_command():
     os.remove(test_filename)
 
 
-def test_powershell_output():
+def disabled_test_powershell_output():
     # Don't bother to test powershell on other platforms than windows
     if os.name != 'nt':
         return True
@@ -491,6 +491,49 @@ def test_powershell_output():
     print('powershell: ', exit_code, output)
     assert exit_code == 0, 'Powershell execution failed.'
 
+
+def test_pypy():
+    def my_threaded_funtion(output_queue):
+        """
+        Takes a queue as argument and writes file output to said queue
+        """
+
+        output = ""
+
+        with open(r'C:\GIT\command_runner\README.md', 'r') as file:
+            for line in file.readlines():
+                output_queue.put(line)
+                output += line
+            output_queue.put(None)
+
+    # Get expected output for comparaison
+    expected_output = ""
+    with open(r'C:\GIT\command_runner\README.md', 'r') as file:
+        for line in file.readlines():
+            expected_output += line
+    output_queue = queue.Queue()
+    for i in range(0, 10000):
+        given_output = ""
+        print('round {}'.format(i))
+        # Now run thread and get output
+
+        output_queue.queue.clear()
+        thread = threading.Thread(target=my_threaded_funtion, args=(output_queue,))
+        thread.daemon = True
+        thread.start()
+
+        read_queue = True
+        while read_queue:
+            try:
+                output = output_queue.get(timeout=0.1)
+            except queue.Empty:
+                pass
+            else:
+                if output is None:
+                    break
+                given_output += output
+
+        assert given_output == expected_output
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
