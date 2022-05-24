@@ -512,7 +512,7 @@ def command_runner(
                 stdout_read_queue = False
 
             # Don't bother to read stderr if we redirect to stdout
-            if stderr_destination != "stdout":
+            if stderr_destination not in ["stdout", None]:
                 stderr_read_queue = True
                 stderr_queue = queue.Queue()
                 stderr_read_thread = threading.Thread(
