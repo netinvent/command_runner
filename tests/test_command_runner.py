@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052301'
+__build__ = '2022052401'
 
 
 import re
@@ -336,7 +336,7 @@ def test_queue_output():
         print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
         return
 
-    for range in (0, 50):
+    for i in range(0, 50):
         for stream in streams:
             output_queue = queue.Queue()
             for method in methods:
@@ -374,7 +374,7 @@ def test_queue_output():
                     # Since we redirect STDOUT to STDERR
                     assert stream_output == output, 'Queue output should contain same result as output'
                 else:
-                    assert exit_code == -250, 'stream_callback exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
+                    assert exit_code == -250, 'stream_queue exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
                         method, exit_code,
                         output)
 
