@@ -524,24 +524,25 @@ def command_runner(
                 stderr_read_queue = False
 
             while stdout_read_queue or stderr_read_queue:
-                try:
-                    line = stdout_queue.get(timeout=check_interval)
-                except queue.Empty:
-                    pass
-                else:
-                    if line is None:
-                        if stdout_destination == "queue":
-                            stdout.put(None)
-                        stdout_read_queue = False
+                if stdout_read_queue:
+                    try:
+                        line = stdout_queue.get(timeout=check_interval)
+                    except queue.Empty:
+                        pass
                     else:
-                        line = to_encoding(line, encoding, errors)
-                        if stdout_destination == "callback":
-                            stdout(line)
-                        if stdout_destination == "queue":
-                            stdout.put(line)
-                        if live_output:
-                            sys.stdout.write(line)
-                        output += line
+                        if line is None:
+                            if stdout_destination == "queue":
+                                stdout.put(None)
+                            stdout_read_queue = False
+                        else:
+                            line = to_encoding(line, encoding, errors)
+                            if stdout_destination == "callback":
+                                stdout(line)
+                            if stdout_destination == "queue":
+                                stdout.put(line)
+                            if live_output:
+                                sys.stdout.write(line)
+                            output += line
 
                 if stderr_read_queue:
                     try:
