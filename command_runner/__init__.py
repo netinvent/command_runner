@@ -27,6 +27,7 @@ __compat__ = "python2.7+"
 
 import io
 import os
+import gc
 import shlex
 import subprocess
 import sys
@@ -573,6 +574,9 @@ def command_runner(
             # that were killed because of timeout
             __check_timeout(begin_time, timeout)
             exit_code = process.poll()
+
+            # WIP: Try to make sure we get full result of output variable in PyPy
+            gc.collect()
             return exit_code, output
 
         except KeyboardInterrupt:
