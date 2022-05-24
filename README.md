@@ -21,7 +21,8 @@ while solving various problems a developer may face among:
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
 
 It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
-...and yes, keeping Python 2.7 compatibility is quite challenging.
+It is also compatible with PyPy Python implementation.
+...and yes, keeping Python 2.7 compatibility has proven to be quite challenging.
 
 ## command_runner
 
