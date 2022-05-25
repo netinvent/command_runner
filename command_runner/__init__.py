@@ -22,7 +22,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.4.0-rc2"
-__build__ = "2022052401"
+__build__ = "2022052501"
 __compat__ = "python2.7+"
 
 import io
@@ -479,9 +479,6 @@ def command_runner(
         Returns an encoded string of the pipe output
         """
 
-        begin_time = datetime.now()
-        output = ""
-
         def __check_timeout(
             begin_time,  # type: datetime.timestamp
             timeout,  # type: int
@@ -498,6 +495,9 @@ def command_runner(
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 raise StopOnInterrupt(output)
+
+        begin_time = datetime.now()
+        output = None if (stdout_destination is None and stderr_destination is None) else ""
 
         try:
             if stdout_destination is not None:
