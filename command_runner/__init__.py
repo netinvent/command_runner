@@ -497,7 +497,9 @@ def command_runner(
                 raise StopOnInterrupt(output)
 
         begin_time = datetime.now()
-        output = None if (stdout_destination is None and stderr_destination is None) else ""
+        output = (
+            None if (stdout_destination is None and stderr_destination is None) else ""
+        )
 
         try:
             if stdout_destination is not None:
