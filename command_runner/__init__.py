@@ -531,8 +531,6 @@ def command_runner(
                         pass
                     else:
                         if line is None:
-                            if stdout_destination == "queue":
-                                stdout.put(None)
                             stdout_read_queue = False
                         else:
                             line = to_encoding(line, encoding, errors)
@@ -551,8 +549,6 @@ def command_runner(
                         pass
                     else:
                         if line is None:
-                            if stderr_destination == "queue":
-                                stderr.put(None)
                             stderr_read_queue = False
                         else:
                             line = to_encoding(line, encoding, errors)
@@ -831,11 +827,10 @@ def command_runner(
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
-    if method != 'poller':
-        if stdout_destination == "queue":
-            stdout.put(None)
-        if stderr_destination == "queue":
-            stderr.put(None)
+    if stdout_destination == "queue":
+        stdout.put(None)
+    if stderr_destination == "queue":
+        stderr.put(None)
 
     return exit_code, output
 
