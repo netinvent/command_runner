@@ -628,7 +628,7 @@ def command_runner(
             target=_timeout_check_thread,
             args=(process, timeout, stop_queue),
         )
-        thread.setDaemon(True)
+        thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
 
         process_output = None
