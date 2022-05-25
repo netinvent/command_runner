@@ -234,15 +234,13 @@ thread_result = command_runner_threaded('ping 127.0.0.1', shell=True, method='po
 
 read_queue = True
 while read_queue:
-    if thread_result.done():
-        read_queue = False
     try:
         line = output_queue.get(timeout=0.1)
     except queue.Empty:
         pass
     else:
         if line is None:
-            break
+            read_queue = False
         else:
             stream_output += line
             # ADD YOUR LIVE CODE HERE
@@ -261,11 +259,9 @@ stdout_queue = queue.Queue()
 stderr_queue = queue.Queue()
 thread_result = command_runner_threaded('ping 127.0.0.1', method='poller', shell=True, stdout=stdout_queue, stderr=stderr_queue)
 
-read_queue = True
 read_stdout = read_stderr = True
-while read_queue or read_stdout or read_stderr:
-    if thread_result.done():
-        read_queue = False
+while read_stdout or read_stderr:
+
     try:
         stdout_line = stdout_queue.get(timeout=0.1)
     except queue.Empty:
@@ -431,22 +427,14 @@ import queue
 import threading
 from command_runner import command_runner
 
-IS_RUNNING = True
-
 def read_queue(output_queue):
     """
     Read the queue as thread
     Our problem here is that the thread can live forever if we don't check a global value, which is...well ugly
     """
-    
-    global IS_RUNNING
-    
     stream_output = ""
-    must_read = True
-    
-    while must_read:
-        if not IS_RUNNING:
-            must_read = False
+    read_queue = True
+    while read_queue:
         try:
             line = output_queue.get(timeout=1)
         except queue.Empty:
@@ -454,23 +442,22 @@ def read_queue(output_queue):
         else:
             # The queue reading can be stopped once 'None' is received.
             if line is None:
-                break
+                read_queue = False
             else:
                 stream_output += line
                 # ADD YOUR LIVE CODE HERE
-    return stream_output
+
 
 # Create a new queue that command_runner will fill up
 output_queue = queue.Queue()
 
 # Create a thread of read_queue() in order to read the queue while command_runner executes the command
 read_thread = threading.Thread(
-    target=read_queue, args=(output_queue, )
+    target=read_queue, args=(output_queue)
 )
 read_thread.daemon = True  # thread dies with the program
 read_thread.start()
 
-# Launch command_runner
+# Launch command_runner, which will be blocking. Your live code goes directly into the threaded function
 exit_code, output = command_runner('ping 127.0.0.1', stdout=output_queue, method='poller')
-IS_RUNNING = False
 ```
