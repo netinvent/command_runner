@@ -248,7 +248,7 @@ def test_read_file():
             file_content = file.read()
 
     for method in methods:
-        for round in range(0, 25):
+        for round in range(0, 2500):
             print('Comparaison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
@@ -336,7 +336,7 @@ def test_queue_output():
         print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
         return
 
-    for i in range(0, 50):
+    for i in range(0, 1000):
         for stream in streams:
             output_queue = queue.Queue()
             for method in methods:
