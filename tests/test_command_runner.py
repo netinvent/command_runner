@@ -427,13 +427,11 @@ def test_queue_non_threaded_command_runner():
             print('Round={}, cmd={}'.format(i, cmd))
             exit_code, output = command_runner(cmd, stdout=output_queue, method='poller', **shell_args)
             assert exit_code == 0, 'PING_CMD Exit code is not okay. exit_code={}, output={}'.format(exit_code, output)
-            print('OUTPUT', output)
 
             # Wait until we are sure that we emptied the queue
             while not output_queue.empty():
                 sleep(.1)
 
-            print('STREAM', stream_output['value'])
             assert stream_output['value'] == output, 'Output should be identical'
 
 
