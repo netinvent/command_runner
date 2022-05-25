@@ -51,17 +51,20 @@ else:
 streams = ['stdout', 'stderr']
 methods = ['monitor', 'poller']
 
+test_filename = 'README.md'
 if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
     PING_CMD_REDIR = PING_CMD + ' 1>&2'
     # Make sure we run the failure command first so end result is okay
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
+    PRINT_FILE_CMD = 'type {}'.format(test_filename)
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '127.0.0.1', '-c', '4']
     PING_CMD_REDIR = 'ping 127.0.0.1 -c 4 1>&2'
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
+    PRINT_FILE_CMD = 'cat {}'.format(test_filename)
     # TODO shlex.split(command, posix=True) test for Linux
 
 ELAPSED_TIME = timestamp(datetime.now())
@@ -235,7 +238,6 @@ def test_read_file():
     Read a couple of times the same file to be sure we don't get garbage from _read_pipe()
     This is a random failure detection test
     """
-    test_filename = 'README.md'
 
     # We don't have encoding argument in Python 2, yet we need it for PyPy
     if sys.version_info[0] < 3:
@@ -246,13 +248,11 @@ def test_read_file():
             file_content = file.read()
 
     for method in methods:
-        for round in range(0, 2500):
+        for round in range(0, 25):
             print('Comparaison round {} with method {}'.format(round, method))
+            exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
-                exit_code, output = command_runner('type {}'.format(test_filename), shell=True, method=method)
                 output = output.replace('\r\n', '\n')
-            else:
-                exit_code, output = command_runner('cat {}'.format(test_filename), shell=True, method=method)
 
             assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(test_filename, method, exit_code,
                                                                                                  output)
@@ -343,8 +343,8 @@ def test_queue_output():
                 stream_output = ""
                 stream_args = {stream: output_queue}
                 output_queue.queue.clear()
-                print('Method={}, stream={}, output=queue'.format(method, stream))
-                thread_result = command_runner_threaded(PING_CMD_REDIR, shell=True, method=method, **stream_args)
+                print('Round={}, Method={}, stream={}, output=queue'.format(i, method, stream))
+                thread_result = command_runner_threaded(PRINT_FILE_CMD, shell=True, method=method, **stream_args)
 
                 read_queue = True
                 while read_queue:
@@ -370,11 +370,66 @@ def test_queue_output():
                     assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                           output)
                     # Since we redirect STDOUT to STDERR
-                    assert stream_output == output, 'Queue output should contain same result as output'
+                    print('STREAM', stream_output)
+                    print('OUTPUT', output)
+                    if stream == 'stdout':
+                        # TODO: test stderr stream output
+                        assert stream_output == output, 'Queue output should contain same result as output'
                 else:
                     assert exit_code == -250, 'stream_queue exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
                         method, exit_code,
                         output)
+
+
+def test_queue_non_threaded_command_runner():
+    """
+    Test case for Python 2.7 without proper threading return values
+    """
+    def read_queue(output_queue, stream_output):
+        """
+        Read the queue as thread
+        Our problem here is that the thread can live forever if we don't check a global value, which is...well ugly
+        """
+        read_queue = True
+        while read_queue:
+            try:
+                line = output_queue.get(timeout=1)
+            except queue.Empty:
+                pass
+            else:
+                # The queue reading can be stopped once 'None' is received.
+                if line is None:
+                    read_queue = False
+                else:
+                    stream_output['value'] += line
+                    # ADD YOUR LIVE CODE HERE
+        return stream_output
+        # TODO assert test here
+
+
+    for i in range(0, 20):
+        for cmd in [PING_CMD, PRINT_FILE_CMD]:
+            if cmd == PRINT_FILE_CMD:
+                shell_args = {'shell': True}
+            else:
+                shell_args = {'shell': False}
+            # Create a new queue that command_runner will fill up
+            output_queue = queue.Queue()
+            stream_output = {'value': ''}
+            # Create a thread of read_queue() in order to read the queue while command_runner executes the command
+            read_thread = threading.Thread(
+                target=read_queue, args=(output_queue, stream_output)
+            )
+            read_thread.daemon = True  # thread dies with the program
+            read_thread.start()
+
+            # Launch command_runner
+            print('Round={}, cmd={}'.format(i, cmd))
+            exit_code, output = command_runner(cmd, stdout=output_queue, method='poller', **shell_args)
+            assert exit_code == 0, 'PING_CMD Exit code is not okay. exit_code={}, output={}'.format(exit_code, output)
+            print('OUTPUT', output)
+            print('STREAM', stream_output['value'])
+            assert stream_output['value'] == output, 'Output should be identical'
 
 
 def test_double_queue_threaded_stop():
@@ -393,9 +448,8 @@ def test_double_queue_threaded_stop():
         shell=True, stdout=stdout_queue, stderr=stderr_queue)
 
     print('Begin to read queues')
-    read_queue = True
     read_stdout = read_stderr = True
-    while read_queue or read_stdout or read_stderr:
+    while read_stdout or read_stderr:
         try:
             stdout_line = stdout_queue.get(timeout=0.1)
         except queue.Empty:
@@ -417,6 +471,13 @@ def test_double_queue_threaded_stop():
                 print('stderr is finished')
             else:
                 print('STDERR:', stderr_line)
+
+    while True:
+        done = thread_result.done()
+        print('Thread is done:', done)
+        if done:
+            break
+        sleep(1)
 
     exit_code, output = thread_result.result()
     assert exit_code == 0, 'We did not succeed in running the thread'
@@ -502,7 +563,9 @@ if __name__ == "__main__":
     test_read_file()
     test_stop_on_argument()
     test_process_callback()
+    test_stream_callback()
     test_queue_output()
+    test_queue_non_threaded_command_runner()
     test_double_queue_threaded_stop()
     test_deferred_command()
     test_powershell_output()
