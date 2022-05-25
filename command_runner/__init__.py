@@ -729,6 +729,7 @@ def command_runner(
             if method == "poller" or live_output and _stdout is not False:
                 exit_code, output = _poll_process(process, timeout, encoding, errors)
             else:
+                # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
                 if stdout_destination in [
                     "callback",
                     "queue",
@@ -827,6 +828,15 @@ def command_runner(
             _stderr.close()
 
     logger.debug(output)
+
+    # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
+    # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
+    if method != 'poller':
+        if stdout_destination == "queue":
+            stdout.put(None)
+        if stderr_destination == "queue":
+            stderr.put(None)
+
     return exit_code, output
 
 
