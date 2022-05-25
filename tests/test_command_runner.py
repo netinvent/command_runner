@@ -348,8 +348,6 @@ def test_queue_output():
 
                 read_queue = True
                 while read_queue:
-                    if thread_result.done():
-                        read_queue = False
                     try:
                         line = output_queue.get(timeout=0.1)
                     except queue.Empty:
@@ -398,9 +396,6 @@ def test_double_queue_threaded_stop():
     read_queue = True
     read_stdout = read_stderr = True
     while read_queue or read_stdout or read_stderr:
-        if thread_result.done():
-            read_queue = False
-            print('Thread is done')
         try:
             stdout_line = stdout_queue.get(timeout=0.1)
         except queue.Empty:
