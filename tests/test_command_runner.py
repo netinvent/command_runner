@@ -370,8 +370,6 @@ def test_queue_output():
                     assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
                                                                                                           output)
                     # Since we redirect STDOUT to STDERR
-                    print('STREAM', stream_output)
-                    print('OUTPUT', output)
                     if stream == 'stdout':
                         # TODO: test stderr stream output
                         assert stream_output == output, 'Queue output should contain same result as output'
