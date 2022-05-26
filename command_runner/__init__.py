@@ -181,8 +181,6 @@ def threaded(fn):
         return future
 
     return wrapper
-
-
 ### END DIRECT IMPORT FROM ofunctions.threading
 
 
@@ -331,7 +329,7 @@ def command_runner(
     method="monitor",  # type: str
     check_interval=0.05,  # type: float
     stop_on=None,  # type: Callable
-    process_callback=None,  # type Callable
+    process_callback=None,  # type: Callable
     **kwargs  # type: Any
 ):
     # type: (...) -> Tuple[Optional[int], str]
@@ -630,7 +628,7 @@ def command_runner(
         thread.start()
 
         process_output = None
-        stdout = None
+        stdout_output = None
 
         try:
             # Don't use process.wait() since it may deadlock on old Python versions
@@ -645,20 +643,19 @@ def command_runner(
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
-                if _stdout is not False:
-                    try:
-                        stdout, _ = process.communicate()
-                    # ValueError is raised on closed IO file
-                    except (TimeoutExpired, ValueError):
-                        pass
-            exit_code = process.poll()
-
-            if _stdout is not False:
                 try:
-                    stdout, _ = process.communicate()
+                    stdout_output, _ = process.communicate()
+                # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
-            process_output = to_encoding(stdout, encoding, errors)
+            exit_code = process.poll()
+
+            try:
+                stdout_output, _ = process.communicate()
+            except (TimeoutExpired, ValueError):
+                pass
+            if stdout_destination is not None:
+                process_output = to_encoding(stdout_output, encoding, errors)
 
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
