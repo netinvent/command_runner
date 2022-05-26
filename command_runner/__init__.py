@@ -593,11 +593,11 @@ def command_runner(
         while True:
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                must_stop['value'] = "T"  # T stands for TIMEOUT REACHED
+                must_stop["value"] = "T"  # T stands for TIMEOUT REACHED
                 break
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                must_stop['value'] = "S"  # S stands for STOP_ON RETURNED TRUE
+                must_stop["value"] = "S"  # S stands for STOP_ON RETURNED TRUE
                 break
             if process.poll() is not None:
                 break
@@ -620,7 +620,7 @@ def command_runner(
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
         # Let's create a queue to get the timeout thread response on a deterministic way
-        must_stop = {'value': False}
+        must_stop = {"value": False}
 
         thread = threading.Thread(
             target=_timeout_check_thread,
@@ -636,7 +636,7 @@ def command_runner(
             # Don't use process.wait() since it may deadlock on old Python versions
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
-                if must_stop['value']:
+                if must_stop["value"]:
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
@@ -660,9 +660,9 @@ def command_runner(
             while thread.is_alive():
                 sleep(check_interval)
 
-            if must_stop['value'] == "T":
+            if must_stop["value"] == "T":
                 raise TimeoutExpired(process, timeout, process_output)
-            elif must_stop['value'] == "S":
+            elif must_stop["value"] == "S":
                 raise StopOnInterrupt(process_output)
             return exit_code, process_output
         except KeyboardInterrupt:
