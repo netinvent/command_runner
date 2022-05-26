@@ -620,7 +620,7 @@ def command_runner(
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
         # Let's create a queue to get the timeout thread response on a deterministic way
-        must_stop = {'value: False'}
+        must_stop = {'value': False}
 
         thread = threading.Thread(
             target=_timeout_check_thread,
