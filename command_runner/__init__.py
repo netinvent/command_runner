@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0-rc2"
-__build__ = "2022052501"
+__version__ = "1.4.0-rc3"
+__build__ = "2022052701"
 __compat__ = "python2.7+"
 
 import io
@@ -619,7 +619,7 @@ def command_runner(
         # Shared mutable objects have proven to have race conditions with PyPy 3.7 (mutable object
         # is changed in thread, but outer monitor function has still old mutable object state)
         # Strangely, this happened only sometimes on github actions/ubuntu 20.04.3 & pypy 3.7
-        # Let's create a queue to get the timeout thread response on a deterministic way
+        # Just make sure the thread is done before using mutable object
         must_stop = {"value": False}
 
         thread = threading.Thread(
@@ -656,7 +656,7 @@ def command_runner(
 
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
-            # This workaround prevents reading the queue while the thread is still alive
+            # This workaround prevents reading the mutable object while the thread is still alive
             while thread.is_alive():
                 sleep(check_interval)
 
