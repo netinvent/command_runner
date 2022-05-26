@@ -601,6 +601,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
+            # We definitly need some sleep time here or else we will overload CPU
             sleep(check_interval)
 
     def _monitor_process(
