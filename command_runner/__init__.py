@@ -597,7 +597,7 @@ def command_runner(
                 break
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                must_stop['value'] = "T"  # S stands for STOP_ON RETURNED TRUE
+                must_stop['value'] = "S"  # S stands for STOP_ON RETURNED TRUE
                 break
             if process.poll() is not None:
                 break
