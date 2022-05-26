@@ -637,9 +637,8 @@ def command_runner(
             # Don't use process.wait() since it may deadlock on old Python versions
             # Also it won't allow communicate() to get incomplete output on timeouts
             while process.poll() is None:
-                sleep(check_interval)
                 try:
-                    must_stop = stop_queue.get_nowait()
+                    must_stop = stop_queue.get(timeout=check_interval)
                 except queue.Empty:
                     pass
                 else:
