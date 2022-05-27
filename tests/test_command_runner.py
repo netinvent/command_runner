@@ -407,7 +407,6 @@ def test_queue_non_threaded_command_runner():
                     stream_output['value'] += line
                     # ADD YOUR LIVE CODE HERE
         return stream_output
-        # TODO assert test here
 
 
     for i in range(0, 20):
