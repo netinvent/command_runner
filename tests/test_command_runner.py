@@ -338,11 +338,13 @@ def test_queue_output():
 
     for i in range(0, 1000):
         for stream in streams:
-            output_queue = queue.Queue()
             for method in methods:
+                if method == 'monitor' and i > 1:
+                    # Dont bother to repeat the test for monitor mode more than once
+                    continue
+                output_queue = queue.Queue()
                 stream_output = ""
                 stream_args = {stream: output_queue}
-                output_queue.queue.clear()
                 print('Round={}, Method={}, stream={}, output=queue'.format(i, method, stream))
                 thread_result = command_runner_threaded(PRINT_FILE_CMD, shell=True, method=method, **stream_args)
 
