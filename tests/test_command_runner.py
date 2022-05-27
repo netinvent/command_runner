@@ -58,6 +58,8 @@ if os.name == 'nt':
     PING_CMD_REDIR = PING_CMD + ' 1>&2'
     # Make sure we run the failure command first so end result is okay
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
+    PING_FAILURE = 'ping 0.0.0.0 -n 2 1>&2'
+
     PRINT_FILE_CMD = 'type {}'.format(test_filename)
 else:
     ENCODING = 'utf-8'
@@ -65,7 +67,9 @@ else:
     PING_CMD_REDIR = 'ping 127.0.0.1 -c 4 1>&2'
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
     PRINT_FILE_CMD = 'cat {}'.format(test_filename)
+    PING_FAILURE = 'ping 0.0.0.0 -c 2 1>&2'
     # TODO shlex.split(command, posix=True) test for Linux
+
 
 ELAPSED_TIME = timestamp(datetime.now())
 PROCESS_ID = None
@@ -172,8 +176,9 @@ def test_not_found():
     """
     for method in methods:
         print('The following command should fail with method {}'.format(method))
-        exit_code, _ = command_runner('unknown_command_nowhere_to_be_found_1234')
+        exit_code, output = command_runner('unknown_command_nowhere_to_be_found_1234')
         assert exit_code == -253, 'Unknown command should trigger a -253 exit code with method {}'.format(method)
+        assert "failed" in output, 'Error code -253 should be Command x failed, reason'
 
 
 def test_file_output():
@@ -548,6 +553,44 @@ def test_powershell_output():
     assert exit_code == 0, 'Powershell execution failed.'
 
 
+def test_null_redir():
+    exit_code, output = command_runner(PING_CMD, stdout=False)
+    assert output is None, 'We should not have any output here'
+    print(exit_code)
+    print('OUTPUT:', output)
+
+    exit_code, output = command_runner(PING_CMD_AND_FAILURE, shell=True, stderr=False)
+    assert '0.0.0.0' not in output, 'We should not get error output from here'
+    print(exit_code)
+    print('OUTPUT:', output)
+
+def test_split_streams():
+    """
+    Test replacing output with stdout and stderr output
+    """
+    for cmd in [PING_CMD, PING_CMD_AND_FAILURE]:
+        for method in methods:
+            print('cmd={}, method={}'.format(cmd, method))
+
+            try:
+                exit_code, output = command_runner(cmd, method=method, shell=True, split_streams=True)
+            except ValueError:
+                # Should generate a valueError
+                pass
+            except Exception as exc:
+                assert False, 'We should have too many values to unpack here'
+        
+            exit_code, stdout, stderr = command_runner(cmd, method=method, shell=True, split_streams=True)
+            if cmd == PING_CMD:
+                assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+                assert '127.0.0.1' in stdout
+                assert stderr is None
+            if cmd == PING_CMD_AND_FAILURE:
+                assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+                assert '127.0.0.1' in stdout
+                assert '0.0.0.0' in stderr
+
+
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
     test_standard_ping_with_encoding()
@@ -570,3 +613,5 @@ if __name__ == "__main__":
     test_double_queue_threaded_stop()
     test_deferred_command()
     test_powershell_output()
+    test_null_redir()
+    test_split_streams()
