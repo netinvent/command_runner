@@ -872,9 +872,9 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug('STDOUT:', output_stdout)
+    logger.debug('STDOUT: ' + output_stdout if output_stdout else "")
     if stderr_destination not in ['stdout', None]:
-        logger.debug('STDERR:', output_stderr)
+        logger.debug('STDERR: ' + output_stderr if output_stderr else "")
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
