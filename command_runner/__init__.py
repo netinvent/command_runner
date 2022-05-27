@@ -519,7 +519,6 @@ def command_runner(
         begin_time = datetime.now()
         output_stdout = output_stderr = ""
 
-
         try:
             if stdout_destination is not None:
                 stdout_read_queue = True
@@ -762,9 +761,13 @@ def command_runner(
                 process_callback(process)
             if method == "poller" or live_output and _stdout is not False:
                 if split_streams:
-                    exit_code, output_stdout, output_stderr = _poll_process(process, timeout, encoding, errors)
+                    exit_code, output_stdout, output_stderr = _poll_process(
+                        process, timeout, encoding, errors
+                    )
                 else:
-                    exit_code, output_stdout = _poll_process(process, timeout, encoding, errors)
+                    exit_code, output_stdout = _poll_process(
+                        process, timeout, encoding, errors
+                    )
             else:
                 # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
                 if stdout_destination in [
@@ -775,9 +778,13 @@ def command_runner(
                         'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
                     )
                 if split_streams:
-                    exit_code, output_stdout, output_stderr = _monitor_process(process, timeout, encoding, errors)
+                    exit_code, output_stdout, output_stderr = _monitor_process(
+                        process, timeout, encoding, errors
+                    )
                 else:
-                    exit_code, output_stdout = _monitor_process(process, timeout, encoding, errors)
+                    exit_code, output_stdout = _monitor_process(
+                        process, timeout, encoding, errors
+                    )
         except KbdInterruptGetOutput as exc:
             exit_code = -252
             output_stdout = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
@@ -791,7 +798,6 @@ def command_runner(
                 _stderr.write(output_stderr.encode(encoding, errors=errors))
             elif stdout_destination == "file" and output_stderr:
                 _stdout.write(output_stderr.encode(encoding, errors=errors))
-
 
         logger.debug(
             'Command "{}" returned with exit code "{}". Command output was:'.format(
@@ -872,9 +878,9 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug('STDOUT: ' + output_stdout if output_stdout else "")
-    if stderr_destination not in ['stdout', None]:
-        logger.debug('STDERR: ' + output_stderr if output_stderr else "")
+    logger.debug("STDOUT: " + output_stdout if output_stdout else "")
+    if stderr_destination not in ["stdout", None]:
+        logger.debug("STDERR: " + output_stderr if output_stderr else "")
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
