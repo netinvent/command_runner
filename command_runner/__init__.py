@@ -462,6 +462,19 @@ def command_runner(
             output_queue.put(None)
             stream.close()
 
+    def _get_error_output(output_stdout, output_stderr):
+        """
+        Try to concatenate output for exceptions if possible
+        """
+        try:
+            return output_stdout + output_stderr
+        except TypeError:
+            if output_stdout:
+                return output_stdout
+            if output_stderr:
+                return output_stderr
+            return None
+
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
@@ -492,10 +505,10 @@ def command_runner(
 
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                raise TimeoutExpired(process, timeout, output)
+                raise TimeoutExpired(process, timeout, _get_error_output(output_stdout, output_stderr))
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                raise StopOnInterrupt(output)
+                raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
 
         begin_time = datetime.now()
         if split_streams:
@@ -505,6 +518,7 @@ def command_runner(
             output_stdout = (
                 None if (stdout_destination is None and stderr_destination is None) else ""
             )
+            output_stderr = None if stderr_destination is None else ""
 
         try:
             if stdout_destination is not None:
@@ -586,15 +600,8 @@ def command_runner(
                 return exit_code, output_stdout
 
         except KeyboardInterrupt:
-            try:
-                raise KbdInterruptGetOutput(output_stdout + output_stderr)
-            except TypeError:
-                if output_stdout:
-                    raise KbdInterruptGetOutput(output_stdout)
-                elif output_stderr:
-                    raise KbdInterruptGetOutput(output_stderr)
-                else:
-                    raise KbdInterruptGetOutput(None)
+            raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
+
 
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -689,19 +696,14 @@ def command_runner(
             while thread.is_alive():
                 sleep(check_interval)
 
-            if split_streams:
-                process_output = output_stdout + output_stderr
-            else:
-                process_output = output_stdout
-
             try:
                 must_stop = stop_queue.get_nowait()
             except queue.Empty:
                 pass
             if must_stop == "T":
-                raise TimeoutExpired(process, timeout, process_output)
+                raise TimeoutExpired(process, timeout, _get_error_output(output_stdout, output_stderr))
             elif must_stop == "S":
-                raise StopOnInterrupt(process_output)
+                raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
             elif must_stop is not False:
                 # stop_queue should never have values other than "TIMEOUT" or "STOP"
                 # Nevertheless, if a read error occured, we still should stop execution
@@ -711,15 +713,7 @@ def command_runner(
             else:
                 return exit_code, output_stdout
         except KeyboardInterrupt:
-            try:
-                raise KbdInterruptGetOutput(output_stdout + output_stderr)
-            except TypeError:
-                if output_stdout:
-                    raise KbdInterruptGetOutput(output_stdout)
-                elif output_stderr:
-                    raise KbdInterruptGetOutput(output_stderr)
-                else:
-                    raise KbdInterruptGetOutput(None)
+            raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
 
 
     try:
