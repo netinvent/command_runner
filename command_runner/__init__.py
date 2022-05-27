@@ -505,7 +505,9 @@ def command_runner(
 
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                raise TimeoutExpired(process, timeout, _get_error_output(output_stdout, output_stderr))
+                raise TimeoutExpired(
+                    process, timeout, _get_error_output(output_stdout, output_stderr)
+                )
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
@@ -516,7 +518,9 @@ def command_runner(
             output_stderr = None if stderr_destination is None else ""
         else:
             output_stdout = (
-                None if (stdout_destination is None and stderr_destination is None) else ""
+                None
+                if (stdout_destination is None and stderr_destination is None)
+                else ""
             )
             output_stderr = None if stderr_destination is None else ""
 
@@ -601,7 +605,6 @@ def command_runner(
 
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
-
 
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -701,7 +704,9 @@ def command_runner(
             except queue.Empty:
                 pass
             if must_stop == "T":
-                raise TimeoutExpired(process, timeout, _get_error_output(output_stdout, output_stderr))
+                raise TimeoutExpired(
+                    process, timeout, _get_error_output(output_stdout, output_stderr)
+                )
             elif must_stop == "S":
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
             elif must_stop is not False:
@@ -714,7 +719,6 @@ def command_runner(
                 return exit_code, output_stdout
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
-
 
     try:
         # Finally, we won't use encoding & errors arguments for Popen
