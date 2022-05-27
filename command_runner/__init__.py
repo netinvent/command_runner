@@ -332,9 +332,10 @@ def command_runner(
     check_interval=0.05,  # type: float
     stop_on=None,  # type: Callable
     process_callback=None,  # type: Callable
+    split_streams=False,  # type: bool
     **kwargs  # type: Any
 ):
-    # type: (...) -> Tuple[Optional[int], str]
+    # type: (...) -> Union[Tuple[int, Optional[str]], Tuple[int, Optional[str], Optional[str]]]
     """
     Unix & Windows compatible subprocess wrapper that handles output encoding and timeouts
     Newer Python check_output already handles encoding and timeouts, but this one is retro-compatible
@@ -497,9 +498,13 @@ def command_runner(
                 raise StopOnInterrupt(output)
 
         begin_time = datetime.now()
-        output = (
-            None if (stdout_destination is None and stderr_destination is None) else ""
-        )
+        if split_streams:
+            output_stdout = None if stdout_destination is None else ""
+            output_stderr = None if stderr_destination is None else ""
+        else:
+            output_stdout = (
+                None if (stdout_destination is None and stderr_destination is None) else ""
+            )
 
         try:
             if stdout_destination is not None:
@@ -542,7 +547,7 @@ def command_runner(
                                 stdout.put(line)
                             if live_output:
                                 sys.stdout.write(line)
-                            output += line
+                            output_stdout += line
 
                 if stderr_read_queue:
                     try:
@@ -560,7 +565,10 @@ def command_runner(
                                 stderr.put(line)
                             if live_output:
                                 sys.stderr.write(line)
-                            output += line
+                            if split_streams:
+                                output_stderr += line
+                            else:
+                                output_stdout += line
 
                 __check_timeout(begin_time, timeout)
 
@@ -572,10 +580,21 @@ def command_runner(
             # that were killed because of timeout
             __check_timeout(begin_time, timeout)
             exit_code = process.poll()
-            return exit_code, output
+            if split_streams:
+                return exit_code, output_stdout, output_stderr
+            else:
+                return exit_code, output_stdout
 
         except KeyboardInterrupt:
-            raise KbdInterruptGetOutput(output)
+            try:
+                raise KbdInterruptGetOutput(output_stdout + output_stderr)
+            except TypeError:
+                if output_stdout:
+                    raise KbdInterruptGetOutput(output_stdout)
+                elif output_stderr:
+                    raise KbdInterruptGetOutput(output_stderr)
+                else:
+                    raise KbdInterruptGetOutput(None)
 
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -629,8 +648,7 @@ def command_runner(
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
 
-        process_output = None
-        stdout_output = None
+        output_stdout = output_stderr = None
 
         try:
             # Don't use process.wait() since it may deadlock on old Python versions
@@ -646,24 +664,35 @@ def command_runner(
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
                 try:
-                    stdout_output, _ = process.communicate()
+                    output_stdout, output_stderr = process.communicate()
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
             exit_code = process.poll()
 
             try:
-                stdout_output, _ = process.communicate()
+                output_stdout, output_stderr = process.communicate()
             except (TimeoutExpired, ValueError):
                 pass
-            if stdout_destination is not None:
-                process_output = to_encoding(stdout_output, encoding, errors)
+            if split_streams:
+                if stdout_destination is not None:
+                    output_stdout = to_encoding(output_stdout, encoding, errors)
+                if stderr_destination is not None:
+                    output_stderr = to_encoding(output_stderr, encoding, errors)
+            else:
+                if stdout_destination is not None:
+                    output_stdout = to_encoding(output_stdout, encoding, errors)
 
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
             # This workaround prevents reading the queue while the thread is still alive
             while thread.is_alive():
                 sleep(check_interval)
+
+            if split_streams:
+                process_output = output_stdout + output_stderr
+            else:
+                process_output = output_stdout
 
             try:
                 must_stop = stop_queue.get_nowait()
@@ -677,9 +706,21 @@ def command_runner(
                 # stop_queue should never have values other than "TIMEOUT" or "STOP"
                 # Nevertheless, if a read error occured, we still should stop execution
                 raise EnvironmentError
-            return exit_code, process_output
+            if split_streams:
+                return exit_code, output_stdout, output_stderr
+            else:
+                return exit_code, output_stdout
         except KeyboardInterrupt:
-            raise KbdInterruptGetOutput(process_output)
+            try:
+                raise KbdInterruptGetOutput(output_stdout + output_stderr)
+            except TypeError:
+                if output_stdout:
+                    raise KbdInterruptGetOutput(output_stdout)
+                elif output_stderr:
+                    raise KbdInterruptGetOutput(output_stderr)
+                else:
+                    raise KbdInterruptGetOutput(None)
+
 
     try:
         # Finally, we won't use encoding & errors arguments for Popen
