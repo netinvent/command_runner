@@ -580,6 +580,9 @@ def test_split_streams():
                 assert False, 'We should have too many values to unpack here'
         
             exit_code, stdout, stderr = command_runner(cmd, method=method, shell=True, split_streams=True)
+            print('exit_code:', exit_code)
+            print('STDOUT:', stdout)
+            print('STDERR:', stderr)
             if cmd == PING_CMD:
                 assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
                 assert '127.0.0.1' in stdout
