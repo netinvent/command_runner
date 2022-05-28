@@ -412,7 +412,11 @@ def command_runner(
         _stdout = open(stdout, "wb")
         stdout_destination = "file"
     elif stdout is False:
-        _stdout = subprocess.DEVNULL
+        # Python 2.7 does not have subprocess.DEVNULL, hence we need to use a file descriptor
+        try:
+            _stdout = subprocess.DEVNULL
+        except AttributeError:
+            _stdout = PIPE
         stdout_destination = None
     else:
         # We will send anything to given stdout pipe
@@ -430,7 +434,10 @@ def command_runner(
         _stderr = open(stderr, "wb")
         stderr_destination = "file"
     elif stderr is False:
-        _stderr = subprocess.DEVNULL
+        try:
+            _stderr = subprocess.DEVNULL
+        except AttributeError:
+            _stderr = PIPE
         stderr_destination = None
     elif stderr is not None:
         _stderr = stderr
@@ -878,9 +885,9 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug("STDOUT: " + output_stdout if output_stdout else "")
+    logger.debug("STDOUT: " + to_encoding(output_stdout, encoding, errors) if output_stdout else "None")
     if stderr_destination not in ["stdout", None]:
-        logger.debug("STDERR: " + output_stderr if output_stderr else "")
+        logger.debug("STDERR: " + to_encoding(output_stderr, encoding, errors) if output_stderr else "None")
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
