@@ -673,13 +673,14 @@ def command_runner(
                     pass
                 else:
                     break
+                # WIP TODO: Do we still need this since we use must_stop which was already a mutable before
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
-                try:
-                    output_stdout, output_stderr = process.communicate()
+                #try:
+                #    output_stdout, output_stderr = process.communicate()
                 # ValueError is raised on closed IO file
-                except (TimeoutExpired, ValueError):
-                    pass
+                #except (TimeoutExpired, ValueError):
+                #    pass
             exit_code = process.poll()
 
             try:
