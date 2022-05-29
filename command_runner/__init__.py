@@ -737,7 +737,17 @@ def command_runner(
 
     # After all the stuff above, here's finally the function main entry point
     output_stdout = output_stderr = None
+
     try:
+        # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
+        if stdout_destination in [
+            "callback",
+            "queue",
+        ] or stderr_destination in ["callback", "queue"]:
+            raise ValueError(
+                'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
+            )
+
         # Finally, we won't use encoding & errors arguments for Popen
         # since it would defeat the idea of binary pipe reading in live mode
 
@@ -789,14 +799,6 @@ def command_runner(
                         process, timeout, encoding, errors
                     )
             else:
-                # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
-                if stdout_destination in [
-                    "callback",
-                    "queue",
-                ] or stderr_destination in ["callback", "queue"]:
-                    raise ValueError(
-                        'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
-                    )
                 if split_streams:
                     exit_code, output_stdout, output_stderr = _monitor_process(
                         process, timeout, encoding, errors
