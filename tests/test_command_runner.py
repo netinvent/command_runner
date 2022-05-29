@@ -584,7 +584,8 @@ def test_null_redir():
         print(exit_code)
         print('STDOUT:', stdout)
         print('STDERR:', stderr)
-        assert '0.0.0.0' not in output, 'We should not get error output from here'
+        assert '0.0.0.0' not in stdout, 'We should not get error output from here'
+        assert '0.0.0.0' not in stderr, 'We should not get error output from here'
 
 
 def test_split_streams():
