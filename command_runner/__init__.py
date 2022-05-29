@@ -375,7 +375,7 @@ def command_runner(
         if not shell and isinstance(command, str):
             command = shlex.split(command)
         elif shell and isinstance(command, list):
-            command = ' '.join(command)
+            command = " ".join(command)
 
     # Set default values for kwargs
     errors = kwargs.pop(
@@ -740,10 +740,14 @@ def command_runner(
 
     try:
         # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
-        if method == "monitor" and (stdout_destination in [
-            "callback",
-            "queue",
-        ] or stderr_destination in ["callback", "queue"]):
+        if method == "monitor" and (
+            stdout_destination
+            in [
+                "callback",
+                "queue",
+            ]
+            or stderr_destination in ["callback", "queue"]
+        ):
             raise ValueError(
                 'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
             )
@@ -926,9 +930,13 @@ def command_runner(
     # Let's fix this here
     # Python 2.7 will return False to u'' == '' (UnicodeWarning: Unicode equal comparison failed)
     # so we have to make the following statement
-    if stdout_destination is None or (output_stdout is not None and len(output_stdout) == 0):
+    if stdout_destination is None or (
+        output_stdout is not None and len(output_stdout) == 0
+    ):
         output_stdout = None
-    if stderr_destination is None or (output_stderr is not None and len(output_stderr) == 0):
+    if stderr_destination is None or (
+        output_stderr is not None and len(output_stderr) == 0
+    ):
         output_stderr = None
 
     if split_streams:
