@@ -675,7 +675,7 @@ def command_runner(
                 else:
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
-                # with poll() is not None even after process is finished
+                # with poll() is not None even after process is finished, when using shell=True
                 # Behavior validated on python 3.7
                 try:
                     output_stdout, output_stderr = process.communicate()
