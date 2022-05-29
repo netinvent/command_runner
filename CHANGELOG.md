@@ -1,4 +1,3 @@
-
 # v1.4.0 - command and conquer them all
 
 ## Features
@@ -17,7 +16,7 @@
 
 ## Fixes
 
-- Fix unix command list didn't work with `shell=True`
+- Fix unix command provided as list didn't work with `shell=True`
 - Fixed more Python 2.7 UnicodedecodeErrors on corner case exceptions catches
 - Fixed python 2.7 TimeoutException output can fail with UnicodedecodeError
 - Fix Python 2.7 does not have subprocess.DEVNULL
