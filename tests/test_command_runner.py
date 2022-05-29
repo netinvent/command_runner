@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052401'
+__build__ = '2022052901'
 
 
 import re
@@ -68,7 +68,6 @@ else:
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
     PRINT_FILE_CMD = 'cat {}'.format(test_filename)
     PING_FAILURE = 'ping 0.0.0.0 -c 2 1>&2'
-    # TODO shlex.split(command, posix=True) test for Linux
 
 
 ELAPSED_TIME = timestamp(datetime.now())
@@ -379,8 +378,9 @@ def test_queue_output():
                                                                                                           output)
                     # Since we redirect STDOUT to STDERR
                     if stream == 'stdout':
-                        # TODO: test stderr stream output
-                        assert stream_output == output, 'Queue output should contain same result as output'
+                        assert stream_output == output, 'stdout queue output should contain same result as output'
+                    if stream == 'stderr':
+                        assert len(stream_output) == 0, 'stderr queue output should be empty'
                 else:
                     assert exit_code == -250, 'stream_queue exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
                         method, exit_code,
