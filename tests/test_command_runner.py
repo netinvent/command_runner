@@ -576,16 +576,16 @@ def test_null_redir():
         print(exit_code)
         print('STDOUT:', stdout)
         print('STDERR:', stderr)
-        assert stdout is None, 'We should not have any output here'
-        assert stderr is None
+        assert stdout is None, 'We should not have any output from stdout'
+        assert stderr is None, 'We should not have any output from stderr'
 
 
         exit_code, stdout, stderr = command_runner(PING_CMD_AND_FAILURE, shell=True, split_streams=True, stdout=False, stderr=False)
         print(exit_code)
         print('STDOUT:', stdout)
         print('STDERR:', stderr)
-        assert '0.0.0.0' not in stdout, 'We should not get error output from here'
-        assert '0.0.0.0' not in stderr, 'We should not get error output from here'
+        assert stdout is None, 'We should not have any output from stdout'
+        assert stderr is None, 'We should not have any output from stderr'
 
 
 def test_split_streams():
