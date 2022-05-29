@@ -917,9 +917,9 @@ def command_runner(
     # With polling, we return None if nothing has been send to the queues
     # With monitor, process.communicate() will result in '' even if nothing has been sent
     # Let's fix this here
-    if output_stdout == "":
+    if stdout_destination is None or (output_stdout and len(output_stdout) == 0):
         output_stdout = None
-    if output_stderr == "":
+    if stderr_destination is None or (output_stderr and len(output_stderr) == 0):
         output_stderr = None
 
     if split_streams:
