@@ -345,6 +345,9 @@ def test_queue_output():
         for stream in streams:
             output_queue = queue.Queue()
             for method in methods:
+                # No need to make alot of monitor mode checks in queue mode
+                if method == 'monitor' and i > 1:
+                    continue
                 stream_output = ""
                 stream_args = {stream: output_queue}
                 output_queue.queue.clear()
