@@ -661,6 +661,7 @@ def command_runner(
         thread.start()
 
         output_stdout = output_stderr = ""
+        output_stdout_end = output_stderr_end = ""
 
         try:
             # Don't use process.wait() since it may deadlock on old Python versions
@@ -673,20 +674,30 @@ def command_runner(
                     pass
                 else:
                     break
-                # WIP TODO: Do we still need this since we use must_stop which was already a mutable before
                 # We still need to use process.communicate() in this loop so we don't get stuck
                 # with poll() is not None even after process is finished
-                #try:
-                #    output_stdout, output_stderr = process.communicate()
+                # Behavior validated on python 3.7
+                try:
+                    output_stdout, output_stderr = process.communicate()
                 # ValueError is raised on closed IO file
-                #except (TimeoutExpired, ValueError):
-                #    pass
+                except (TimeoutExpired, ValueError):
+                    pass
             exit_code = process.poll()
 
             try:
-                output_stdout, output_stderr = process.communicate()
+                output_stdout_end, output_stderr_end = process.communicate()
             except (TimeoutExpired, ValueError):
                 pass
+
+            # Fix python 2.7 first process.communicate() call will have output whereas other python versions
+            # will give output in second process.communicate() call
+            if output_stdout_end and len(output_stdout_end) > 0:
+                output_stdout = output_stdout_end
+            if output_stderr_end and len(output_stderr_end) > 0:
+                output_stderr = output_stderr_end
+
+
+
             if split_streams:
                 if stdout_destination is not None:
                     output_stdout = to_encoding(output_stdout, encoding, errors)
@@ -876,7 +887,7 @@ def command_runner(
         logger.error(
             'Command "{}" failed for unknown reasons: {}'.format(
                 command, to_encoding(exc.__str__(), encoding, errors)
-            ),
+            ), exc_info=True
         )
         logger.debug("Error:", exc_info=True)
         exit_code, output_stdout = (-255, to_encoding(exc.__str__(), encoding, errors))
