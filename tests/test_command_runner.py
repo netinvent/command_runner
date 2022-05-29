@@ -598,7 +598,7 @@ def test_split_streams():
                 # Should generate a valueError
                 pass
             except Exception as exc:
-                assert False, 'We should have too many values to unpack here'
+                assert False, 'We should have too many values to unpack here: {}'.format(exc)
         
             exit_code, stdout, stderr = command_runner(cmd, method=method, shell=True, split_streams=True)
             print('exit_code:', exit_code)
