@@ -371,8 +371,11 @@ def command_runner(
 
     # Fix when unix command was given as single string
     # This is more secure than setting shell=True
-    if os.name == "posix" and shell is False and isinstance(command, str):
-        command = shlex.split(command)
+    if os.name == "posix":
+        if not shell and isinstance(command, str):
+            command = shlex.split(command)
+        elif shell and isinstance(command, list):
+            command = ' '.join(command)
 
     # Set default values for kwargs
     errors = kwargs.pop(
