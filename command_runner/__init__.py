@@ -740,10 +740,10 @@ def command_runner(
 
     try:
         # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
-        if stdout_destination in [
+        if method == "monitor" and (stdout_destination in [
             "callback",
             "queue",
-        ] or stderr_destination in ["callback", "queue"]:
+        ] or stderr_destination in ["callback", "queue"]):
             raise ValueError(
                 'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
             )
@@ -798,7 +798,7 @@ def command_runner(
                     exit_code, output_stdout = _poll_process(
                         process, timeout, encoding, errors
                     )
-            else:
+            elif method == "monitor":
                 if split_streams:
                     exit_code, output_stdout, output_stderr = _monitor_process(
                         process, timeout, encoding, errors
@@ -807,6 +807,8 @@ def command_runner(
                     exit_code, output_stdout = _monitor_process(
                         process, timeout, encoding, errors
                     )
+            else:
+                raise ValueError("Unknown method {} provided.".format(method))
         except KbdInterruptGetOutput as exc:
             exit_code = -252
             output_stdout = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
