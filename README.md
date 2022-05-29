@@ -151,19 +151,26 @@ logging.getLogger('command_runner').setLevel(logging.ERROR)
 `command_runner` allows two different process output capture methods:
 
 `method='monitor'` which is default:
- - A thread is spawned in order to check timeout and kill process if needed
+ - A thread is spawned in order to check stop conditions and kill process if needed
  - A main loop waits for the process to finish, then uses proc.communicate() to get it's output
- - Pros: less CPU usage
- - Cons: cannot read partial output on KeyboardInterrupt (still works for partial timeout output)
+ - Pros:
+     - less CPU usage
+     - less threads
+ - Cons:
+     - cannot read partial output on KeyboardInterrupt or stop_on (still works for partial timeout output)
+     - cannot use queues or callback functions redirectors
+     - is 0.1 seconds slower than poller method
+     
 
 `method='poller'`:
- - A thread is spawned and reads stdout pipe into a output queue
- - A poller loop reads from the output queue, checks timeout and kills process if needed
+ - A thread is spawned and reads stdout/stderr pipes into output queues
+ - A poller loop reads from the output queues, checks stop conditions and kills process if needed
  - Pros: 
       - Reads on the fly, allowing interactive commands (is also used with `live_output=True`)
-      - Allows stdout/stderr output to be written live to callback functions, queues or files 
- - Cons: Lightly higher CPU usage
-
+      - Allows stdout/stderr output to be written live to callback functions, queues or files (useful when threaded)
+      - is 0.1 seconds faster than monitor method, is preferred method for fast batch runnings
+ - Cons:
+      - lightly higher CPU usage
 
 Example:
 ```python
@@ -363,6 +370,7 @@ print('exit code:', exit_code)
 print('stdout', stdout)
 print('stderr', stderr)
 ```
+
 
 #### Other arguments
 
