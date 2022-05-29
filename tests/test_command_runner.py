@@ -26,14 +26,6 @@ import platform
 from command_runner import *
 
 
-# PyPy fix for thread shared mutable objects not being updated out of thread in time
-if platform.python_implementation().lower() == 'pypy':
-    is_pypy = True
-    import gc
-else:
-    is_pypy = False
-
-
 # Python 2.7 compat where datetime.now() does not have .timestamp() method
 if sys.version_info[0] < 3 or sys.version_info[1] < 4:
     # python version < 3.3
@@ -342,14 +334,13 @@ def test_queue_output():
 
     for i in range(0, 1000):
         for stream in streams:
-            output_queue = queue.Queue()
             for method in methods:
-                # No need to make alot of monitor mode checks in queue mode
                 if method == 'monitor' and i > 1:
+                    # Dont bother to repeat the test for monitor mode more than once
                     continue
+                output_queue = queue.Queue()
                 stream_output = ""
                 stream_args = {stream: output_queue}
-                output_queue.queue.clear()
                 print('Round={}, Method={}, stream={}, output=queue'.format(i, method, stream))
                 thread_result = command_runner_threaded(PRINT_FILE_CMD, shell=True, method=method, **stream_args)
 
@@ -367,11 +358,6 @@ def test_queue_output():
 
 
                 exit_code, output = thread_result.result()
-
-                # On pypy 3.7, mutable object might be uptodate in thread but not yet in main program
-                if is_pypy:
-                    print("RUNNING ON PYPY")
-                    gc.collect()
 
                 if method == 'poller':
                     assert exit_code == 0, 'Wrong exit code. method={}, exit_code: {}, output: {}'.format(method, exit_code,
