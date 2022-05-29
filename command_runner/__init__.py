@@ -696,8 +696,6 @@ def command_runner(
             if output_stderr_end and len(output_stderr_end) > 0:
                 output_stderr = output_stderr_end
 
-
-
             if split_streams:
                 if stdout_destination is not None:
                     output_stdout = to_encoding(output_stdout, encoding, errors)
@@ -887,7 +885,7 @@ def command_runner(
         logger.error(
             'Command "{}" failed for unknown reasons: {}'.format(
                 command, to_encoding(exc.__str__(), encoding, errors)
-            ), exc_info=True
+            ),
         )
         logger.debug("Error:", exc_info=True)
         exit_code, output_stdout = (-255, to_encoding(exc.__str__(), encoding, errors))
@@ -897,9 +895,17 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug("STDOUT: " + to_encoding(output_stdout, encoding, errors) if output_stdout else "None")
+    logger.debug(
+        "STDOUT: " + to_encoding(output_stdout, encoding, errors)
+        if output_stdout
+        else "None"
+    )
     if stderr_destination not in ["stdout", None]:
-        logger.debug("STDERR: " + to_encoding(output_stderr, encoding, errors) if output_stderr else "None")
+        logger.debug(
+            "STDERR: " + to_encoding(output_stderr, encoding, errors)
+            if output_stderr
+            else "None"
+        )
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
