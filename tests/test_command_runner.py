@@ -553,15 +553,36 @@ def test_powershell_output():
 
 
 def test_null_redir():
-    exit_code, output = command_runner(PING_CMD, stdout=False)
-    assert output is None, 'We should not have any output here'
-    print(exit_code)
-    print('OUTPUT:', output)
+    for method in methods:
+        print('method={}'.format(method))
+        exit_code, output = command_runner(PING_CMD, stdout=False)
+        print(exit_code)
+        print('OUTPUT:', output)
+        assert output is None, 'We should not have any output here'
 
-    exit_code, output = command_runner(PING_CMD_AND_FAILURE, shell=True, stderr=False)
-    assert '0.0.0.0' not in output, 'We should not get error output from here'
-    print(exit_code)
-    print('OUTPUT:', output)
+
+        exit_code, output = command_runner(PING_CMD_AND_FAILURE, shell=True, stderr=False)
+        print(exit_code)
+        print('OUTPUT:', output)
+        assert '0.0.0.0' not in output, 'We should not get error output from here'
+
+
+    for method in methods:
+        print('method={}'.format(method))
+        exit_code, stdout, stderr = command_runner(PING_CMD, split_streams=True, stdout=False, stderr=False)
+        print(exit_code)
+        print('STDOUT:', stdout)
+        print('STDERR:', stderr)
+        assert stdout is None, 'We should not have any output here'
+        assert stderr is None
+
+
+        exit_code, stdout, stderr = command_runner(PING_CMD_AND_FAILURE, shell=True, split_streams=True, stdout=False, stderr=False)
+        print(exit_code)
+        print('STDOUT:', stdout)
+        print('STDERR:', stderr)
+        assert '0.0.0.0' not in output, 'We should not get error output from here'
+
 
 def test_split_streams():
     """
