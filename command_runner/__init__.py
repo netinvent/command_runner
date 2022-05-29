@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0-rc2"
-__build__ = "2022052501"
+__version__ = "1.4.0"
+__build__ = "2022052901"
 __compat__ = "python2.7+"
 
 import io
