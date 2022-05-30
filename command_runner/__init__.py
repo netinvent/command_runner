@@ -481,8 +481,13 @@ def command_runner(
         # needs to be of the same type, or the iterator won't have an end
 
         # We also need to check that stream has readline, in case we're writing to files instead of PIPE
+
+        # Another magnificient python 2.7 fix
+        # So we need to convert sentinel_char which would be unicode because of unicode_litterals
+        # to str which is the output format from stream.readline()
+
         if hasattr(stream, "readline"):
-            sentinel_char = "" if hasattr(stream, "encoding") else b""
+            sentinel_char = str("") if hasattr(stream, "encoding") else b""
             for line in iter(stream.readline, sentinel_char):
                 output_queue.put(line)
             output_queue.put(None)
