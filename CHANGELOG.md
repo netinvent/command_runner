@@ -12,6 +12,7 @@
   Lowering this improves responsiveness, but increases CPU usage. Default value should be more than reasaonable for most applications
 - Added `stop_on` argument which takes a function, which is called every `check_interval` and will interrupt execution if it returns True
 - Added `process_callback` argument which takes a function(process), which is called upon execution with a subprocess.Popen object as argument for optional external process control
+- Possibility to disable command_runner stream encoding with `encoding=False` so we get raw output (bytes)
 - Added more unit tests (stop_on, process_callback, stream callback / queues, to_null_redirections, split_streams)
 
 ## Fixes
