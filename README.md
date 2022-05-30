@@ -98,6 +98,15 @@ exit_code, output = command_runner(command, encoding='unicode_escape')
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
 
+You can also disable command_runner's encoding in order to get raw process output (bytes) by passing False boolean.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, raw_output = command_runner('ping 127.0.0.1', encoding=False)
+```
+
 #### On the fly (interactive screen) output
 
 **Note: for live output capture and threading, see stream redirection. If you want to run your application while command_runner gives back command output, the best way to go is queues / callbacks.**
@@ -219,10 +228,6 @@ from command_runner import command_runner
 exit_code, output = command_runner('dir', stdout='/tmp/stdout.log', stderr='/tmp/stderr.log', shell=True)
 ```
 
-Note that the output files will be encoded by default in UTF-8 for Unix and CP437 for windows.
-
-You can override those encodings by using optional argument `encoding='my-encoding'`.
-
 Opening a file with the wrong encoding (especially opening a CP437 encoded file on Windows with UTF-8 coded might endup with UnicodedecodeError.)
 
 - queues
@@ -318,7 +323,7 @@ def callback_function(string):
 exit_code, output = command_runner('ping 127.0.0.1', stdout=callback_function, method='poller')
 ```
 
-### Stop_on
+#### Stop_on
 
 In some situations, you want a command to be aborted on some external triggers.
 That's where `stop_on` argument comes in handy.
@@ -381,7 +386,7 @@ It also uses the following standard arguments:
  - valid_exit_codes (list): List of exit codes which won't trigger error logs
  - timeout (int): seconds before a process tree is killed forcefully, defaults to 3600
  - shell (bool): Shall we use the cmd.exe or /usr/bin/env shell for command execution, defaults to False
- - encoding (str): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
+ - encoding (str/bool): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
  - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
  - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
  - split_streams (bool): Split stdout and stderr into two separate results
