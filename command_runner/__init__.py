@@ -384,7 +384,7 @@ def command_runner(
     # cp437 encoding assures we catch most special characters from cmd.exe
     # Unless encoding=False in which case nothing gets encoded except Exceptions and logger strings for Python 2
     error_encoding = "cp437" if os.name == "nt" else "utf-8"
-    if encoding is not None:
+    if encoding is not False:
         encoding = error_encoding
 
     # Fix when unix command was given as single string
