@@ -248,8 +248,16 @@ def kill_childs_mod(
         )
     else:
         """
-        Extract from Python3 doc
-        On Windows, signal() can only be called with SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, SIGTERM, or SIGBREAK.
+        Warning: There are only a couple of signals supported on Windows platform
+        
+        Extract from signal.valid_signals():
+        
+        Windows / Python 3.9-64
+        {<Signals.SIGINT: 2>, <Signals.SIGILL: 4>, <Signals.SIGFPE: 8>, <Signals.SIGSEGV: 11>, <Signals.SIGTERM: 15>, <Signals.SIGBREAK: 21>, <Signals.SIGABRT: 22>}
+        
+        Linux / Python 3.8-64
+        {<Signals.SIGHUP: 1>, <Signals.SIGINT: 2>, <Signals.SIGQUIT: 3>, <Signals.SIGILL: 4>, <Signals.SIGTRAP: 5>, <Signals.SIGABRT: 6>, <Signals.SIGBUS: 7>, <Signals.SIGFPE: 8>, <Signals.SIGKILL: 9>, <Signals.SIGUSR1: 10>, <Signals.SIGSEGV: 11>, <Signals.SIGUSR2: 12>, <Signals.SIGPIPE: 13>, <Signals.SIGALRM: 14>, <Signals.SIGTERM: 15>, 16, <Signals.SIGCHLD: 17>, <Signals.SIGCONT: 18>, <Signals.SIGSTOP: 19>, <Signals.SIGTSTP: 20>, <Signals.SIGTTIN: 21>, <Signals.SIGTTOU: 22>, <Signals.SIGURG: 23>, <Signals.SIGXCPU: 24>, <Signals.SIGXFSZ: 25>, <Signals.SIGVTALRM: 26>, <Signals.SIGPROF: 27>, <Signals.SIGWINCH: 28>, <Signals.SIGIO: 29>, <Signals.SIGPWR: 30>, <Signals.SIGSYS: 31>, <Signals.SIGRTMIN: 34>, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, <Signals.SIGRTMAX: 64>}
+        
         A ValueError will be raised in any other case. Note that not all systems define the same set of signal names;
         an AttributeError will be raised if a signal name is not defined as SIG* module level constant.
         """
@@ -287,9 +295,8 @@ def kill_childs_mod(
             else:
                 process.kill()
 
-    current_pid = pid if pid is not None else os.getpid()
     try:
-        current_process = psutil.Process(current_pid)
+        current_process = psutil.Process(pid)
     # psutil.NoSuchProcess might not be available, let's be broad
     # pylint: disable=W0703
     except Exception:
@@ -300,22 +307,27 @@ def kill_childs_mod(
                     pid, 15
                 )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
             except OSError as exc:
-                logger.error(
-                    "Could not properly kill process with pid {}: {}".format(
-                        current_pid,
-                        to_encoding(exc.__str__(), "utf-8", "backslashreplace"),
+                if os.name == 'nt':
+                    # We'll do an ugly hack since os.kill() has some pretty big caveats on Windows
+                    # especially for Python 2.7 where we can get Access Denied
+                    os.system("taskkill /F /pid {}".format(pid))
+                else:
+                    logger.error(
+                        "Could not properly kill process with pid {}: {}".format(
+                            pid,
+                            to_encoding(exc.__str__(), "utf-8", "backslashreplace"),
+                        )
                     )
-                )
                 raise
             ### END COMMAND_RUNNER MOD
         return False
+    else:
+        for child in current_process.children(recursive=True):
+            _process_killer(child, sig, soft_kill)
 
-    for child in current_process.children(recursive=True):
-        _process_killer(child, sig, soft_kill)
-
-    if itself:
-        _process_killer(current_process, sig, soft_kill)
-    return True
+        if itself:
+            _process_killer(current_process, sig, soft_kill)
+        return True
 
 
 def command_runner(
