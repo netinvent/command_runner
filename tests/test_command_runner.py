@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052401'
+__build__ = '2022052901'
 
 
 import re
@@ -50,6 +50,8 @@ if os.name == 'nt':
     PING_CMD_REDIR = PING_CMD + ' 1>&2'
     # Make sure we run the failure command first so end result is okay
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
+    PING_FAILURE = 'ping 0.0.0.0 -n 2 1>&2'
+
     PRINT_FILE_CMD = 'type {}'.format(test_filename)
 else:
     ENCODING = 'utf-8'
@@ -57,7 +59,8 @@ else:
     PING_CMD_REDIR = 'ping 127.0.0.1 -c 4 1>&2'
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -c 2 1>&2; ping 127.0.0.1 -c 2'
     PRINT_FILE_CMD = 'cat {}'.format(test_filename)
-    # TODO shlex.split(command, posix=True) test for Linux
+    PING_FAILURE = 'ping 0.0.0.0 -c 2 1>&2'
+
 
 ELAPSED_TIME = timestamp(datetime.now())
 PROCESS_ID = None
@@ -164,8 +167,9 @@ def test_not_found():
     """
     for method in methods:
         print('The following command should fail with method {}'.format(method))
-        exit_code, _ = command_runner('unknown_command_nowhere_to_be_found_1234')
+        exit_code, output = command_runner('unknown_command_nowhere_to_be_found_1234')
         assert exit_code == -253, 'Unknown command should trigger a -253 exit code with method {}'.format(method)
+        assert "failed" in output, 'Error code -253 should be Command x failed, reason'
 
 
 def test_file_output():
@@ -360,8 +364,9 @@ def test_queue_output():
                                                                                                           output)
                     # Since we redirect STDOUT to STDERR
                     if stream == 'stdout':
-                        # TODO: test stderr stream output
-                        assert stream_output == output, 'Queue output should contain same result as output'
+                        assert stream_output == output, 'stdout queue output should contain same result as output'
+                    if stream == 'stderr':
+                        assert len(stream_output) == 0, 'stderr queue output should be empty'
                 else:
                     assert exit_code == -250, 'stream_queue exit_code is bogus. method={}, exit_code: {}, output: {}'.format(
                         method, exit_code,
@@ -391,7 +396,6 @@ def test_queue_non_threaded_command_runner():
                     stream_output['value'] += line
                     # ADD YOUR LIVE CODE HERE
         return stream_output
-        # TODO assert test here
 
 
     for i in range(0, 20):
@@ -537,6 +541,69 @@ def test_powershell_output():
     assert exit_code == 0, 'Powershell execution failed.'
 
 
+def test_null_redir():
+    for method in methods:
+        print('method={}'.format(method))
+        exit_code, output = command_runner(PING_CMD, stdout=False)
+        print(exit_code)
+        print('OUTPUT:', output)
+        assert output is None, 'We should not have any output here'
+
+
+        exit_code, output = command_runner(PING_CMD_AND_FAILURE, shell=True, stderr=False)
+        print(exit_code)
+        print('OUTPUT:', output)
+        assert '0.0.0.0' not in output, 'We should not get error output from here'
+
+
+    for method in methods:
+        print('method={}'.format(method))
+        exit_code, stdout, stderr = command_runner(PING_CMD, split_streams=True, stdout=False, stderr=False)
+        print(exit_code)
+        print('STDOUT:', stdout)
+        print('STDERR:', stderr)
+        assert stdout is None, 'We should not have any output from stdout'
+        assert stderr is None, 'We should not have any output from stderr'
+
+
+        exit_code, stdout, stderr = command_runner(PING_CMD_AND_FAILURE, shell=True, split_streams=True, stdout=False, stderr=False)
+        print(exit_code)
+        print('STDOUT:', stdout)
+        print('STDERR:', stderr)
+        assert stdout is None, 'We should not have any output from stdout'
+        assert stderr is None, 'We should not have any output from stderr'
+
+
+def test_split_streams():
+    """
+    Test replacing output with stdout and stderr output
+    """
+    for cmd in [PING_CMD, PING_CMD_AND_FAILURE]:
+        for method in methods:
+            print('cmd={}, method={}'.format(cmd, method))
+
+            try:
+                exit_code, output = command_runner(cmd, method=method, shell=True, split_streams=True)
+            except ValueError:
+                # Should generate a valueError
+                pass
+            except Exception as exc:
+                assert False, 'We should have too many values to unpack here: {}'.format(exc)
+        
+            exit_code, stdout, stderr = command_runner(cmd, method=method, shell=True, split_streams=True)
+            print('exit_code:', exit_code)
+            print('STDOUT:', stdout)
+            print('STDERR:', stderr)
+            if cmd == PING_CMD:
+                assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+                assert '127.0.0.1' in stdout
+                assert stderr is None
+            if cmd == PING_CMD_AND_FAILURE:
+                assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+                assert '127.0.0.1' in stdout
+                assert '0.0.0.0' in stderr
+
+
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
     test_standard_ping_with_encoding()
@@ -559,3 +626,5 @@ if __name__ == "__main__":
     test_double_queue_threaded_stop()
     test_deferred_command()
     test_powershell_output()
+    test_null_redir()
+    test_split_streams()

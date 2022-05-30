@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0-rc3"
-__build__ = "2022052701"
+__version__ = "1.4.0"
+__build__ = "2022052901"
 __compat__ = "python2.7+"
 
 import io
@@ -332,9 +332,10 @@ def command_runner(
     check_interval=0.05,  # type: float
     stop_on=None,  # type: Callable
     process_callback=None,  # type: Callable
+    split_streams=False,  # type: bool
     **kwargs  # type: Any
 ):
-    # type: (...) -> Tuple[Optional[int], str]
+    # type: (...) -> Union[Tuple[int, Optional[str]], Tuple[int, Optional[str], Optional[str]]]
     """
     Unix & Windows compatible subprocess wrapper that handles output encoding and timeouts
     Newer Python check_output already handles encoding and timeouts, but this one is retro-compatible
@@ -370,8 +371,11 @@ def command_runner(
 
     # Fix when unix command was given as single string
     # This is more secure than setting shell=True
-    if os.name == "posix" and shell is False and isinstance(command, str):
-        command = shlex.split(command)
+    if os.name == "posix":
+        if not shell and isinstance(command, str):
+            command = shlex.split(command)
+        elif shell and isinstance(command, list):
+            command = " ".join(command)
 
     # Set default values for kwargs
     errors = kwargs.pop(
@@ -411,7 +415,11 @@ def command_runner(
         _stdout = open(stdout, "wb")
         stdout_destination = "file"
     elif stdout is False:
-        _stdout = subprocess.DEVNULL
+        # Python 2.7 does not have subprocess.DEVNULL, hence we need to use a file descriptor
+        try:
+            _stdout = subprocess.DEVNULL
+        except AttributeError:
+            _stdout = PIPE
         stdout_destination = None
     else:
         # We will send anything to given stdout pipe
@@ -429,10 +437,17 @@ def command_runner(
         _stderr = open(stderr, "wb")
         stderr_destination = "file"
     elif stderr is False:
-        _stderr = subprocess.DEVNULL
+        try:
+            _stderr = subprocess.DEVNULL
+        except AttributeError:
+            _stderr = PIPE
         stderr_destination = None
     elif stderr is not None:
         _stderr = stderr
+        stderr_destination = "pipe"
+    # Automagically add a pipe so we are sure not to redirect to stdout
+    elif split_streams:
+        _stderr = PIPE
         stderr_destination = "pipe"
     else:
         _stderr = subprocess.STDOUT
@@ -461,13 +476,26 @@ def command_runner(
             output_queue.put(None)
             stream.close()
 
+    def _get_error_output(output_stdout, output_stderr):
+        """
+        Try to concatenate output for exceptions if possible
+        """
+        try:
+            return output_stdout + output_stderr
+        except TypeError:
+            if output_stdout:
+                return output_stdout
+            if output_stderr:
+                return output_stderr
+            return None
+
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
         encoding,  # type: str
         errors,  # type: str
     ):
-        # type: (...) -> Tuple[Optional[int], str]
+        # type: (...) -> Union[Tuple[int, Optional[str]], Tuple[int, Optional[str], Optional[str]]]
         """
         Process stdout/stderr output polling is only used in live output mode
         since it takes more resources than using communicate()
@@ -491,15 +519,15 @@ def command_runner(
 
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                raise TimeoutExpired(process, timeout, output)
+                raise TimeoutExpired(
+                    process, timeout, _get_error_output(output_stdout, output_stderr)
+                )
             if stop_on and stop_on():
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
-                raise StopOnInterrupt(output)
+                raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
 
         begin_time = datetime.now()
-        output = (
-            None if (stdout_destination is None and stderr_destination is None) else ""
-        )
+        output_stdout = output_stderr = ""
 
         try:
             if stdout_destination is not None:
@@ -542,7 +570,7 @@ def command_runner(
                                 stdout.put(line)
                             if live_output:
                                 sys.stdout.write(line)
-                            output += line
+                            output_stdout += line
 
                 if stderr_read_queue:
                     try:
@@ -560,7 +588,10 @@ def command_runner(
                                 stderr.put(line)
                             if live_output:
                                 sys.stderr.write(line)
-                            output += line
+                            if split_streams:
+                                output_stderr += line
+                            else:
+                                output_stdout += line
 
                 __check_timeout(begin_time, timeout)
 
@@ -572,10 +603,13 @@ def command_runner(
             # that were killed because of timeout
             __check_timeout(begin_time, timeout)
             exit_code = process.poll()
-            return exit_code, output
+            if split_streams:
+                return exit_code, output_stdout, output_stderr
+            else:
+                return exit_code, output_stdout
 
         except KeyboardInterrupt:
-            raise KbdInterruptGetOutput(output)
+            raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
 
     def _timeout_check_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -610,7 +644,7 @@ def command_runner(
         encoding,  # type: str
         errors,  # type: str
     ):
-        # type: (...) -> Tuple[Optional[int], str]
+        # type: (...) -> Union[Tuple[int, Optional[str]], Tuple[int, Optional[str], Optional[str]]]
         """
         Create a thread in order to enforce timeout or a stop_on condition
         Get stdout output and return it
@@ -629,8 +663,8 @@ def command_runner(
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
 
-        process_output = None
-        stdout_output = None
+        output_stdout = output_stderr = ""
+        output_stdout_end = output_stderr_end = ""
 
         try:
             # Don't use process.wait() since it may deadlock on old Python versions
@@ -639,20 +673,35 @@ def command_runner(
                 if must_stop["value"]:
                     break
                 # We still need to use process.communicate() in this loop so we don't get stuck
-                # with poll() is not None even after process is finished
+                # with poll() is not None even after process is finished, when using shell=True
+                # Behavior validated on python 3.7
                 try:
-                    stdout_output, _ = process.communicate()
+                    output_stdout, output_stderr = process.communicate()
                 # ValueError is raised on closed IO file
                 except (TimeoutExpired, ValueError):
                     pass
             exit_code = process.poll()
 
             try:
-                stdout_output, _ = process.communicate()
+                output_stdout_end, output_stderr_end = process.communicate()
             except (TimeoutExpired, ValueError):
                 pass
-            if stdout_destination is not None:
-                process_output = to_encoding(stdout_output, encoding, errors)
+
+            # Fix python 2.7 first process.communicate() call will have output whereas other python versions
+            # will give output in second process.communicate() call
+            if output_stdout_end and len(output_stdout_end) > 0:
+                output_stdout = output_stdout_end
+            if output_stderr_end and len(output_stderr_end) > 0:
+                output_stderr = output_stderr_end
+
+            if split_streams:
+                if stdout_destination is not None:
+                    output_stdout = to_encoding(output_stdout, encoding, errors)
+                if stderr_destination is not None:
+                    output_stderr = to_encoding(output_stderr, encoding, errors)
+            else:
+                if stdout_destination is not None:
+                    output_stdout = to_encoding(output_stdout, encoding, errors)
 
             # On PyPy 3.7 only, we can have a race condition where we try to read the queue before
             # the thread could write to it, failing to register a timeout.
@@ -661,14 +710,35 @@ def command_runner(
                 sleep(check_interval)
 
             if must_stop["value"] == "T":
-                raise TimeoutExpired(process, timeout, process_output)
+                raise TimeoutExpired(
+                    process, timeout, _get_error_output(output_stdout, output_stderr)
+                )
             elif must_stop["value"] == "S":
-                raise StopOnInterrupt(process_output)
-            return exit_code, process_output
+                raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
+            if split_streams:
+                return exit_code, output_stdout, output_stderr
+            else:
+                return exit_code, output_stdout
         except KeyboardInterrupt:
-            raise KbdInterruptGetOutput(process_output)
+            raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
+
+    # After all the stuff above, here's finally the function main entry point
+    output_stdout = output_stderr = None
 
     try:
+        # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
+        if method == "monitor" and (
+            stdout_destination
+            in [
+                "callback",
+                "queue",
+            ]
+            or stderr_destination in ["callback", "queue"]
+        ):
+            raise ValueError(
+                'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
+            )
+
         # Finally, we won't use encoding & errors arguments for Popen
         # since it would defeat the idea of binary pipe reading in live mode
 
@@ -711,26 +781,38 @@ def command_runner(
             if callable(process_callback):
                 process_callback(process)
             if method == "poller" or live_output and _stdout is not False:
-                exit_code, output = _poll_process(process, timeout, encoding, errors)
-            else:
-                # Don't allow monitor method when stdout or stderr is callback/queue redirection (makes no sense)
-                if stdout_destination in [
-                    "callback",
-                    "queue",
-                ] or stderr_destination in ["callback", "queue"]:
-                    raise ValueError(
-                        'Cannot use callback or queue destination in monitor mode. Please use method="poller" argument.'
+                if split_streams:
+                    exit_code, output_stdout, output_stderr = _poll_process(
+                        process, timeout, encoding, errors
                     )
-                exit_code, output = _monitor_process(process, timeout, encoding, errors)
+                else:
+                    exit_code, output_stdout = _poll_process(
+                        process, timeout, encoding, errors
+                    )
+            elif method == "monitor":
+                if split_streams:
+                    exit_code, output_stdout, output_stderr = _monitor_process(
+                        process, timeout, encoding, errors
+                    )
+                else:
+                    exit_code, output_stdout = _monitor_process(
+                        process, timeout, encoding, errors
+                    )
+            else:
+                raise ValueError("Unknown method {} provided.".format(method))
         except KbdInterruptGetOutput as exc:
             exit_code = -252
-            output = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
+            output_stdout = "KeyboardInterrupted. Partial output\n{}".format(exc.output)
             try:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
             except AttributeError:
                 pass
-            if stdout_destination == "file":
-                _stdout.write(output.encode(encoding, errors=errors))
+            if stdout_destination == "file" and output_stdout:
+                _stdout.write(output_stdout.encode(encoding, errors=errors))
+            if stderr_destination == "file" and output_stderr:
+                _stderr.write(output_stderr.encode(encoding, errors=errors))
+            elif stdout_destination == "file" and output_stderr:
+                _stdout.write(output_stderr.encode(encoding, errors=errors))
 
         logger.debug(
             'Command "{}" returned with exit code "{}". Command output was:'.format(
@@ -740,9 +822,9 @@ def command_runner(
     except subprocess.CalledProcessError as exc:
         exit_code = exc.returncode
         try:
-            output = exc.output
+            output_stdout = exc.output
         except AttributeError:
-            output = "command_runner: Could not obtain output from command."
+            output_stdout = "command_runner: Could not obtain output from command."
         if exit_code in valid_exit_codes if valid_exit_codes is not None else [0]:
             logger.debug(
                 'Command "{}" returned with exit code "{}". Command output was:'.format(
@@ -754,7 +836,7 @@ def command_runner(
                 command, exc.returncode
             )
         )
-        logger.error(output)
+        logger.error(output_stdout)
     except FileNotFoundError as exc:
         message = 'Command "{}" failed, file not found: {}'.format(
             command, to_encoding(exc.__str__(), encoding, errors)
@@ -762,7 +844,7 @@ def command_runner(
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = (-253, message)
+        exit_code, output_stdout = (-253, message)
     # On python 2.7, OSError is also raised when file is not found (no FileNotFoundError)
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
@@ -772,7 +854,7 @@ def command_runner(
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = (-253, message)
+        exit_code, output_stdout = (-253, message)
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
             timeout, command, exc.output
@@ -780,7 +862,7 @@ def command_runner(
         logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = (-254, message)
+        exit_code, output_stdout = (-254, message)
     except StopOnInterrupt as exc:
         message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
             command, to_encoding(exc.output, encoding, errors)
@@ -788,13 +870,13 @@ def command_runner(
         logger.info(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(encoding, errors=errors))
-        exit_code, output = (-251, message)
+        exit_code, output_stdout = (-251, message)
     except ValueError as exc:
         message = to_encoding(exc.__str__(), encoding, errors)
-        logger.error(message)
+        logger.error(message, exc_info=True)
         if stdout_destination == "file":
             _stdout.write(message)
-        exit_code, output = (-250, message)
+        exit_code, output_stdout = (-250, message)
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
@@ -804,14 +886,24 @@ def command_runner(
             ),
         )
         logger.debug("Error:", exc_info=True)
-        exit_code, output = (-255, to_encoding(exc.__str__(), encoding, errors))
+        exit_code, output_stdout = (-255, to_encoding(exc.__str__(), encoding, errors))
     finally:
         if stdout_destination == "file":
             _stdout.close()
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug(output)
+    logger.debug(
+        "STDOUT: " + to_encoding(output_stdout, encoding, errors)
+        if output_stdout
+        else "None"
+    )
+    if stderr_destination not in ["stdout", None]:
+        logger.debug(
+            "STDERR: " + to_encoding(output_stderr, encoding, errors)
+            if output_stderr
+            else "None"
+        )
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
@@ -820,7 +912,24 @@ def command_runner(
     if stderr_destination == "queue":
         stderr.put(None)
 
-    return exit_code, output
+    # With polling, we return None if nothing has been send to the queues
+    # With monitor, process.communicate() will result in '' even if nothing has been sent
+    # Let's fix this here
+    # Python 2.7 will return False to u'' == '' (UnicodeWarning: Unicode equal comparison failed)
+    # so we have to make the following statement
+    if stdout_destination is None or (
+        output_stdout is not None and len(output_stdout) == 0
+    ):
+        output_stdout = None
+    if stderr_destination is None or (
+        output_stderr is not None and len(output_stderr) == 0
+    ):
+        output_stderr = None
+
+    if split_streams:
+        return exit_code, output_stdout, output_stderr
+    else:
+        return exit_code, _get_error_output(output_stdout, output_stderr)
 
 
 if sys.version_info[0] >= 3:

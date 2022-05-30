@@ -1,5 +1,5 @@
 # command_runner
-## A python tool for rapid platform agnostic command execution, live stdout/stderr output capture, and UAC/sudo elevation
+# Platform agnostic command execution, timed background jobs with live stdout/stderr output capture, and UAC/sudo elevation
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/netinvent/command_runner.svg)](http://isitmaintained.com/project/netinvent/command_runner "Percentage of issues still open")
@@ -13,7 +13,7 @@
 command_runner's purpose is to run external commands from python, just like subprocess on which it relies, 
 while solving various problems a developer may face among:
    - Handling of all possible subprocess.popen / subprocess.check_output scenarios / python versions in one handy function without encoding / timeout hassle
-   - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get output into your application while commands are running
+   - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get to handle output in your application while commands are running
    - Callback to optional stop check so we can stop execution from outside command_runner
    - Callback with optional process information so we get to control the process from outside command_runner
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
@@ -29,22 +29,21 @@ It is also compatible with PyPy Python implementation.
 command_runner is a replacement package for subprocess.popen and subprocess.check_output
 The main promise command_runner can do is to make sure to never have a blocking command, and always get results.
 
-It works as wrapper for subprocess.popen and subprocess.check_output that solves:
+It works as wrapper for subprocess.popen and subprocess.communicate that solves:
    - Platform differences
       - Handle timeouts even for windows GUI applications that don't return anything to stdout
    - Python language version differences
       - Handle timeouts even on earlier Python implementations
       - Handle encoding even on earlier Python implementations
    - Keep the promise to always return an exit code (so we don't have to deal with exit codes and exception logic at the same time)
-   - Keep the promise to always return the command output regardless of the execution state (even with timeouts and keyboard interrupts)
+   - Keep the promise to always return the command output regardless of the execution state (even with timeouts, callback interrupts and keyboard interrupts)
    - Can show command output on the fly without waiting the end of execution (with `live_output=True` argument)
    - Can give command output on the fly to application by using queues or callback functions
    - Catch all possible exceptions and log them properly with encoding fixes
+   - Be compatible, and always return the same result regarless of platform
 
 command_runner also promises to properly kill commands when timeouts are reached, including spawned subprocesses of such commands.
 This specific behavior is achieved via psutil module, which is an optional dependency.
-
-
 
    
 ### command_runner in a nutshell
@@ -60,7 +59,7 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 ```
 
 
-## Guide
+## Guide to command_runner
 
 ### Setup
 
@@ -152,19 +151,26 @@ logging.getLogger('command_runner').setLevel(logging.ERROR)
 `command_runner` allows two different process output capture methods:
 
 `method='monitor'` which is default:
- - A thread is spawned in order to check timeout and kill process if needed
+ - A thread is spawned in order to check stop conditions and kill process if needed
  - A main loop waits for the process to finish, then uses proc.communicate() to get it's output
- - Pros: less CPU usage
- - Cons: cannot read partial output on KeyboardInterrupt (still works for partial timeout output)
+ - Pros:
+     - less CPU usage
+     - less threads
+ - Cons:
+     - cannot read partial output on KeyboardInterrupt or stop_on (still works for partial timeout output)
+     - cannot use queues or callback functions redirectors
+     - is 0.1 seconds slower than poller method
+     
 
 `method='poller'`:
- - A thread is spawned and reads stdout pipe into a output queue
- - A poller loop reads from the output queue, checks timeout and kills process if needed
+ - A thread is spawned and reads stdout/stderr pipes into output queues
+ - A poller loop reads from the output queues, checks stop conditions and kills process if needed
  - Pros: 
       - Reads on the fly, allowing interactive commands (is also used with `live_output=True`)
-      - Allows stdout/stderr output to be written live to callback functions, queues or files 
- - Cons: Lightly higher CPU usage
-
+      - Allows stdout/stderr output to be written live to callback functions, queues or files (useful when threaded)
+      - is 0.1 seconds faster than monitor method, is preferred method for fast batch runnings
+ - Cons:
+      - lightly higher CPU usage
 
 Example:
 ```python
@@ -195,15 +201,22 @@ You may also pass any other subprocess.PIPE int values to `stdout` or `stderr` a
 - /dev/null or NUL
 
 If `stdout=False` and/or `stderr=False` argument(s) are given, command output will not be saved.
+stdout/stderr streams will be redirected to `/dev/null` or `NUL` depending on platform.
+
+Output will always be `None`. See `split_streams` for more details using multiple outputs.
 
 - files
 
 Giving `stdout` and/or `stderr` arguments a string, `command_runner` will consider the string to be a file path where stream output will be written live.
-Example (of course this also works with unix paths):
 
+Examples:
 ```python
 from command_runner import command_runner
-exit_code, output = command_runner('dir', stdout='C:/tmp/command_result', stderr='C:/tmp/command_error', shell=True)
+exit_code, output = command_runner('dir', stdout=r"C:/tmp/command_result", stderr=r"C:/tmp/command_error", shell=True)
+```
+```python
+from command_runner import command_runner
+exit_code, output = command_runner('dir', stdout='/tmp/stdout.log', stderr='/tmp/stderr.log', shell=True)
 ```
 
 Note that the output files will be encoded by default in UTF-8 for Unix and CP437 for windows.
@@ -316,7 +329,7 @@ Example:
 from command_runner import command_runner
 
 def some_function():
-    return True if my_conditions_are_met
+    return True if we_must_stop_execution
 exit_code, output = command_runner('ping 127.0.0.1', stop_on=some_function)
 ```
 
@@ -342,28 +355,48 @@ def show_process_info(process):
 exit_code, output = command_runner('ping 127.0.0.1', process_callback=show_process_info)
 ```
 
+#### Split stdout and stderr
+
+By default, `command_runner` returns a tuple like `(exit_code, output)` in which output contains both stdout and stderr stream outputs.
+You can alter that behavior by using argument `split_stream=True`.
+In that case, `command_runner` will return a tuple like `(exit_code, stdout, stderr)`.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, stdout, stderr = command_runner('ping 127.0.0.1', split_streams=True)
+print('exit code:', exit_code)
+print('stdout', stdout)
+print('stderr', stderr)
+```
+
+
 #### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
 
 It also uses the following standard arguments:
- - command: The command, doesn't need to be a list, a simple string works
- - valid_exit_codes: List of exit codes which won't trigger error logs
- - timeout: seconds before a process tree is killed forcefully, defaults to 3600
- - shell: Shall we use the cmd.exe or /usr/bin/env shell for command execution, defaults to False
- - encoding: Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
- - stdout: Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
- - stderr: Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
- - windows_no_window: Shall a command create a console window (MS Windows only), defaults to False
- - live_output: Print output to stdout while executing command, defaults to False
- - method: Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
- - check interval: Defaults to 0.05 seconds, which is the time between stream readings and timeout checks
- - stop_on: Optional function that when returns True stops command_runner execution
- - process_callback: Optional function that will take command_runner spawned process as argument, in order to deal with process info outside of command_runner
- - close_fds: Like Popen, defaults to True on Linux and False on Windows
- - universal_newlines: Like Popen, defaults to False
- - creation_flags: Like Popen, defaults to 0
- - bufsize: Like Popen, defaults to 16384. Line buffering (bufsize=1) is deprecated since Python 3.7
+ - command (str/list): The command, doesn't need to be a list, a simple string works
+ - valid_exit_codes (list): List of exit codes which won't trigger error logs
+ - timeout (int): seconds before a process tree is killed forcefully, defaults to 3600
+ - shell (bool): Shall we use the cmd.exe or /usr/bin/env shell for command execution, defaults to False
+ - encoding (str): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
+ - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
+ - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
+ - split_streams (bool): Split stdout and stderr into two separate results
+ - windows_no_window (bool): Shall a command create a console window (MS Windows only), defaults to False
+ - live_output (bool): Print output to stdout while executing command, defaults to False
+ - method (str): Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
+ - check interval (float): Defaults to 0.05 seconds, which is the time between stream readings and timeout checks
+ - stop_on (function): Optional function that when returns True stops command_runner execution
+ - process_callback (function): Optional function that will take command_runner spawned process as argument, in order to deal with process info outside of command_runner
+ - close_fds (bool): Like Popen, defaults to True on Linux and False on Windows
+ - universal_newlines (bool): Like Popen, defaults to False
+ - creation_flags (int): Like Popen, defaults to 0
+ - bufsize (int): Like Popen, defaults to 16384. Line buffering (bufsize=1) is deprecated since Python 3.7
+
+**Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
 ## UAC Elevation / sudo elevation
 
