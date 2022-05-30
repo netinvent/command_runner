@@ -916,7 +916,6 @@ def command_runner(
             ),
             exc_info=True,
         )
-        logger.debug("Error:", exc_info=True)
         exit_code, output_stdout = (
             -255,
             to_encoding(exc.__str__(), error_encoding, errors),
