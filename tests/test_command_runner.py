@@ -22,7 +22,6 @@ __build__ = '2022053001'
 
 
 import re
-import platform
 from command_runner import *
 
 
