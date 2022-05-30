@@ -339,7 +339,7 @@ def command_runner(
     valid_exit_codes=None,  # type: Optional[List[int]]
     timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
-    encoding=None,  # type: Optional[str]
+    encoding=None,  # type: Optional[Union[str, bool]]
     stdout=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     stderr=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     windows_no_window=False,  # type: bool
@@ -351,7 +351,7 @@ def command_runner(
     split_streams=False,  # type: bool
     **kwargs  # type: Any
 ):
-    # type: (...) -> Union[Tuple[int, Optional[str]], Tuple[int, Optional[str], Optional[str]]]
+    # type: (...) -> Union[Tuple[int, Optional[Union[bytes, str]]], Tuple[int, Optional[Union[bytes, str]], Optional[Union[bytes, str]]]]
     """
     Unix & Windows compatible subprocess wrapper that handles output encoding and timeouts
     Newer Python check_output already handles encoding and timeouts, but this one is retro-compatible
@@ -550,7 +550,10 @@ def command_runner(
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
 
         begin_time = datetime.now()
-        output_stdout = output_stderr = ""
+        if encoding is False:
+            output_stdout = output_stderr = b""
+        else:
+            output_stdout = output_stderr = ""
 
         try:
             if stdout_destination is not None:
@@ -686,8 +689,12 @@ def command_runner(
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
 
-        output_stdout = output_stderr = ""
-        output_stdout_end = output_stderr_end = ""
+        if encoding is False:
+            output_stdout = output_stderr = b""
+            output_stdout_end = output_stderr_end = b""
+        else:
+            output_stdout = output_stderr = ""
+            output_stdout_end = output_stderr_end = ""
 
         try:
             # Don't use process.wait() since it may deadlock on old Python versions
@@ -779,8 +786,8 @@ def command_runner(
                 stderr=_stderr,
                 shell=shell,
                 universal_newlines=universal_newlines,
-                encoding=encoding,
-                errors=errors,
+                encoding=encoding if encoding is not False else None,
+                errors=errors if encoding is not False else None,
                 creationflags=creationflags,
                 bufsize=bufsize,  # 1 = line buffered
                 close_fds=close_fds,
@@ -906,7 +913,7 @@ def command_runner(
         logger.error(
             'Command "{}" failed for unknown reasons: {}'.format(
                 command, to_encoding(exc.__str__(), error_encoding, errors)
-            ),
+            ), exc_info=True
         )
         logger.debug("Error:", exc_info=True)
         exit_code, output_stdout = (-255, to_encoding(exc.__str__(), error_encoding, errors))
