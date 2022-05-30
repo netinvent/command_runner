@@ -192,7 +192,7 @@ PIPE = subprocess.PIPE
 
 def to_encoding(
     process_output,  # type: Union[str, bytes]
-    encoding,  # type: str
+    encoding,  # type: Optional[str]
     errors,  # type: str
 ):
     # type: (...) -> str
@@ -200,6 +200,10 @@ def to_encoding(
     Convert bytes output to string and handles conversion errors
     Varation of ofunctions.string_handling.safe_string_convert
     """
+
+    if not encoding:
+        return process_output
+
     # Compatibility for earlier Python versions where Popen has no 'encoding' nor 'errors' arguments
     if isinstance(process_output, bytes):
         try:
@@ -378,8 +382,10 @@ def command_runner(
 
     # Choose default encoding when none set
     # cp437 encoding assures we catch most special characters from cmd.exe
-    if not encoding:
-        encoding = "cp437" if os.name == "nt" else "utf-8"
+    # Unless encoding=False in which case nothing gets encoded except Exceptions and logger strings for Python 2
+    error_encoding = "cp437" if os.name == "nt" else "utf-8"
+    if encoding is not None:
+        encoding = error_encoding
 
     # Fix when unix command was given as single string
     # This is more secure than setting shell=True
@@ -856,21 +862,21 @@ def command_runner(
         logger.error(output_stdout)
     except FileNotFoundError as exc:
         message = 'Command "{}" failed, file not found: {}'.format(
-            command, to_encoding(exc.__str__(), encoding, errors)
+            command, to_encoding(exc.__str__(), error_encoding, errors)
         )
         logger.error(message)
         if stdout_destination == "file":
-            _stdout.write(message.encode(encoding, errors=errors))
+            _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-253, message)
     # On python 2.7, OSError is also raised when file is not found (no FileNotFoundError)
     # pylint: disable=W0705 (duplicate-except)
     except (OSError, IOError) as exc:
         message = 'Command "{}" failed because of OS: {}'.format(
-            command, to_encoding(exc.__str__(), encoding, errors)
+            command, to_encoding(exc.__str__(), error_encoding, errors)
         )
         logger.error(message)
         if stdout_destination == "file":
-            _stdout.write(message.encode(encoding, errors=errors))
+            _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-253, message)
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
@@ -878,18 +884,18 @@ def command_runner(
         )
         logger.error(message)
         if stdout_destination == "file":
-            _stdout.write(message.encode(encoding, errors=errors))
+            _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-254, message)
     except StopOnInterrupt as exc:
         message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
-            command, to_encoding(exc.output, encoding, errors)
+            command, to_encoding(exc.output, error_encoding, errors)
         )
         logger.info(message)
         if stdout_destination == "file":
-            _stdout.write(message.encode(encoding, errors=errors))
+            _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-251, message)
     except ValueError as exc:
-        message = to_encoding(exc.__str__(), encoding, errors)
+        message = to_encoding(exc.__str__(), error_encoding, errors)
         logger.error(message, exc_info=True)
         if stdout_destination == "file":
             _stdout.write(message)
@@ -899,11 +905,11 @@ def command_runner(
     except Exception as exc:
         logger.error(
             'Command "{}" failed for unknown reasons: {}'.format(
-                command, to_encoding(exc.__str__(), encoding, errors)
+                command, to_encoding(exc.__str__(), error_encoding, errors)
             ),
         )
         logger.debug("Error:", exc_info=True)
-        exit_code, output_stdout = (-255, to_encoding(exc.__str__(), encoding, errors))
+        exit_code, output_stdout = (-255, to_encoding(exc.__str__(), error_encoding, errors))
     finally:
         if stdout_destination == "file":
             _stdout.close()
@@ -911,13 +917,13 @@ def command_runner(
             _stderr.close()
 
     logger.debug(
-        "STDOUT: " + to_encoding(output_stdout, encoding, errors)
+        "STDOUT: " + to_encoding(output_stdout, error_encoding, errors)
         if output_stdout
         else "None"
     )
     if stderr_destination not in ["stdout", None]:
         logger.debug(
-            "STDERR: " + to_encoding(output_stderr, encoding, errors)
+            "STDERR: " + to_encoding(output_stderr, error_encoding, errors)
             if output_stderr
             else "None"
         )
