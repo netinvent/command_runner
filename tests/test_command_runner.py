@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022052901'
+__build__ = '2022053001'
 
 
 import re
@@ -97,7 +97,7 @@ def test_standard_ping_with_encoding():
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
 
 
-def test_standard_ping_without_encoding():
+def test_standard_ping_with_default_encoding():
     """
     Without encoding, iter(stream.readline, '') will hang since the expected sentinel char would be b'':
     This could only happen on python <3.6 since command_runner decides to use an encoding anyway
@@ -106,6 +106,17 @@ def test_standard_ping_without_encoding():
         exit_code, output = command_runner(PING_CMD, encoding=None, method=method)
         print(output)
         assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+
+
+def test_standard_ping_with_encoding_disabled():
+    """
+    Without encoding disabled, we should have binary output
+    """
+    for method in methods:
+        exit_code, output = command_runner(PING_CMD, encoding=False, method=method)
+        print(output)
+        assert exit_code == 0, 'Exit code should be 0 for ping command with method {}'.format(method)
+        assert isinstance(output, bytes), 'Output should be binary.'
 
 
 def test_timeout():
@@ -174,7 +185,7 @@ def test_not_found():
 
 def test_file_output():
     """
-    Test commandr_runner with file output instead of stdout
+    Test command_runner with file output instead of stdout
     """
     for method in methods:
         stdout_filename = 'temp.test'
@@ -607,7 +618,8 @@ def test_split_streams():
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
     test_standard_ping_with_encoding()
-    test_standard_ping_without_encoding()
+    test_standard_ping_with_default_encoding()
+    test_standard_ping_with_encoding_disabled()
     test_timeout()
     test_timeout_with_subtree_killing()
     test_no_timeout()
