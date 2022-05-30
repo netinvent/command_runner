@@ -296,7 +296,7 @@ while read_stdout or read_stderr:
         pass
     else:
         if stderr_line is None:
-            read_sterr = False
+            read_stderr = False
         else:
             print('STDERR:', stderr_line)
     
