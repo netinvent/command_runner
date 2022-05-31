@@ -30,4 +30,12 @@ jobs:
         pip install pytest coverage
         python -m coverage run -m pytest -vvs tests
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ./coverage/reports/
+        envç_vars: OS,PYTHON
+        fail_ci_if_error: false
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
