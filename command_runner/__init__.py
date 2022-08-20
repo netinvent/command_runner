@@ -359,8 +359,8 @@ def command_runner(
 
     Also allows a list of various valid exit codes (ie no error when exit code = arbitrary int)
 
-    command should be a list of strings, eg ['ping', '127.0.0.1', '-c 2']
-    command can also be a single string, ex 'ping 127.0.0.1 -c 2' if shell=True or if os is Windows
+    command should be a list of strings, eg ['ping', '-c 2', '127.0.0.1']
+    command can also be a single string, ex 'ping -c 2 127.0.0.1' if shell=True or if os is Windows
 
     Accepts all of subprocess.popen arguments
 
