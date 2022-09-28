@@ -18,12 +18,18 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022053001'
+__build__ = '2022091501'
 
 
+import sys
+import os
 import re
-from command_runner import *
-
+try:
+    from command_runner import *
+except ImportError:  # would be ModuleNotFoundError in Python 3+
+    # In case we run tests without actually having installed command_runner
+    sys.path.insert(0, os.path.abspath(os.path.join(__file__, os.pardir, os.pardir)))
+    from command_runner import *
 
 # Python 2.7 compat where datetime.now() does not have .timestamp() method
 if sys.version_info[0] < 3 or sys.version_info[1] < 4:
