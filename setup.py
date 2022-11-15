@@ -8,7 +8,11 @@ __intname__ = "command_runner.setup"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2021-2022 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__build__ = "2022041601"
+__build__ = "2022092801"
+
+
+PACKAGE_NAME = "command_runner"
+DESCRIPTION = "Platform agnostic command and shell execution tool, also allows UAC/sudo privilege elevation"
 
 import sys
 import os
@@ -73,7 +77,6 @@ def parse_requirements(filename):
         )
 
 
-PACKAGE_NAME = "command_runner"
 package_path = os.path.abspath(PACKAGE_NAME)
 package_file = os.path.join(package_path, "__init__.py")
 metadata = get_metadata(package_file)
@@ -107,7 +110,7 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "License :: OSI Approved :: BSD License",
     ],
-    description="Platform agnostic command and shell execution tool, also allows UAC/sudo privilege elevation",
+    description=DESCRIPTION,
     license="BSD",
     author="NetInvent - Orsiris de Jong",
     author_email="contact@netinvent.fr",
