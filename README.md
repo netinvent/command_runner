@@ -20,7 +20,7 @@ while solving various problems a developer may face among:
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
 
-It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
+It is compatible with Python 2.7+, tested up to Python 3.11 (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
 It is also compatible with PyPy Python implementation.
 ...and yes, keeping Python 2.7 compatibility has proven to be quite challenging.
 
