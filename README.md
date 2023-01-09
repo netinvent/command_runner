@@ -403,6 +403,21 @@ It also uses the following standard arguments:
 
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
+### logging
+
+Even muted, `command_runner` will still log errors.
+If you want to completely mute `command_runner`, you will have to set it's logger instance to `logger.CRITICAL` level, since this level is never called.
+
+Example of entirely muted `command_runner` execution:
+```
+rom command_runner import command_runner
+import logging
+
+logging.getLogger("command_runner").setLevel(logging.CRITICAL)
+
+err_code, stdout, stderr = command_runner("ping 127.0.0.1", timeout=1, method='monitor', live_output=False, stdout=False, stderr=False, split_streams=True)
+```
+
 ## UAC Elevation / sudo elevation
 
 command_runner package allowing privilege elevation.
