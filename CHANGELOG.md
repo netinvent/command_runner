@@ -1,3 +1,7 @@
+# v1.4.1 - command and conquer them all, don't nod
+
+- Fix endoding always was set to os default unless explicitly disabled by setting `encoding=False`
+
 # v1.4.0 - command and conquer them all
 
 ## Features

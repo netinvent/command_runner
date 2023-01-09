@@ -98,7 +98,7 @@ exit_code, output = command_runner(command, encoding='unicode_escape')
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
 
-You can also disable command_runner's encoding in order to get raw process output (bytes) by passing False boolean.
+You can also disable command_runner's internal encoding in order to get raw process output (bytes) by passing False boolean.
 
 Example:
 ```python
