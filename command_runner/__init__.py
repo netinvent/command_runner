@@ -19,10 +19,10 @@ from __future__ import unicode_literals
 
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0"
-__build__ = "2022053001"
+__version__ = "1.4.1"
+__build__ = "2023010901"
 __compat__ = "python2.7+"
 
 import io
