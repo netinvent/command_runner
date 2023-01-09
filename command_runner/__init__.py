@@ -19,10 +19,10 @@ from __future__ import unicode_literals
 
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2022 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.0"
-__build__ = "2022053001"
+__version__ = "1.4.1"
+__build__ = "2023010901"
 __compat__ = "python2.7+"
 
 import io
@@ -384,7 +384,7 @@ def command_runner(
     # cp437 encoding assures we catch most special characters from cmd.exe
     # Unless encoding=False in which case nothing gets encoded except Exceptions and logger strings for Python 2
     error_encoding = "cp437" if os.name == "nt" else "utf-8"
-    if encoding is not False:
+    if encoding is None:
         encoding = error_encoding
 
     # Fix when unix command was given as single string

@@ -20,7 +20,7 @@ while solving various problems a developer may face among:
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
 
-It is compatible with Python 2.7+ (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
+It is compatible with Python 2.7+, tested up to Python 3.11 (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
 It is also compatible with PyPy Python implementation.
 ...and yes, keeping Python 2.7 compatibility has proven to be quite challenging.
 
@@ -98,7 +98,7 @@ exit_code, output = command_runner(command, encoding='unicode_escape')
 
 Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
 
-You can also disable command_runner's encoding in order to get raw process output (bytes) by passing False boolean.
+You can also disable command_runner's internal encoding in order to get raw process output (bytes) by passing False boolean.
 
 Example:
 ```python
@@ -402,6 +402,21 @@ It also uses the following standard arguments:
  - bufsize (int): Like Popen, defaults to 16384. Line buffering (bufsize=1) is deprecated since Python 3.7
 
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
+
+### logging
+
+Even muted, `command_runner` will still log errors.
+If you want to completely mute `command_runner`, you will have to set it's logger instance to `logger.CRITICAL` level, since this level is never called.
+
+Example of entirely muted `command_runner` execution:
+```
+rom command_runner import command_runner
+import logging
+
+logging.getLogger("command_runner").setLevel(logging.CRITICAL)
+
+err_code, stdout, stderr = command_runner("ping 127.0.0.1", timeout=1, method='monitor', live_output=False, stdout=False, stderr=False, split_streams=True)
+```
 
 ## UAC Elevation / sudo elevation
 
