@@ -857,21 +857,23 @@ def command_runner(
             output_stdout = exc.output
         except AttributeError:
             output_stdout = "command_runner: Could not obtain output from command."
-        
+
         logger_fn = logger.error
-        valid_exit_codes_msg = ''
+        valid_exit_codes_msg = ""
         if valid_exit_codes:
             if valid_exit_codes is True or exit_code in valid_exit_codes:
                 logger_fn = logger.info
-                valid_exit_codes_msg = ' allowed'
+                valid_exit_codes_msg = " allowed"
 
         if not silent:
             logger_fn(
                 'Command "{}" failed with{} exit code "{}". Command output was:'.format(
-                    command, valid_exit_codes_msg, exc.returncode, 
+                    command,
+                    valid_exit_codes_msg,
+                    exc.returncode,
                 )
             )
-            logger_fn(output_stdout)            
+            logger_fn(output_stdout)
     except FileNotFoundError as exc:
         message = 'Command "{}" failed, file not found: {}'.format(
             command, to_encoding(exc.__str__(), error_encoding, errors)
