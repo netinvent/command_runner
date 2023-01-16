@@ -144,15 +144,26 @@ Be aware that under MS Windows, no direct process tree is available.
 We fixed this by walking processes during runtime. The drawback is that orphaned processes cannot be identified this way.
 
 
-#### Disabling logs
+#### Disabling logs / silencing
 
-Whenever you want another loglevel for command_runner, you might do with the following statement in your code
+`command_runner` has it's own logging system, which will log all sorts of error logs.
+If you need to disable it's logging, just run with argument silent.
+Be aware that logging.DEBUG log levels won't be silenced, by design.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, output = command_runner('ping 127.0.0.1', silent=True)
+```
+
+If you also need to disable logging.DEBUG level, you can run the following code which will required logging.CRITICAL only messages which `command_runner` never does:
 
 ```python
 import logging
 import command_runner
 
-logging.getLogger('command_runner').setLevel(logging.ERROR)
+logging.getLogger('command_runner').setLevel(logging.CRITICAL)
 ```
 
 #### Capture method
@@ -376,6 +387,20 @@ print('stdout', stdout)
 print('stderr', stderr)
 ```
 
+#### On-exit Callback
+
+`command_runner` allows to execute a callback function once it has finished it's execution.
+This might help building threaded programs where a callback is needed to disable GUI elements for example.
+
+Example:
+```python
+from command_runner import command_runner
+
+def do_something():
+    print("We're done running")
+
+exit_code, output = command_runner('ping 127.0.0.1', on_exit=do_something)
+```
 
 #### Other arguments
 
@@ -389,13 +414,15 @@ It also uses the following standard arguments:
  - encoding (str/bool): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
  - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
  - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
- - split_streams (bool): Split stdout and stderr into two separate results
  - windows_no_window (bool): Shall a command create a console window (MS Windows only), defaults to False
  - live_output (bool): Print output to stdout while executing command, defaults to False
  - method (str): Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
  - check interval (float): Defaults to 0.05 seconds, which is the time between stream readings and timeout checks
  - stop_on (function): Optional function that when returns True stops command_runner execution
+ - on_exit (function): Optional function that gets executed when command_runner has finished (callback function)
  - process_callback (function): Optional function that will take command_runner spawned process as argument, in order to deal with process info outside of command_runner
+ - split_streams (bool): Split stdout and stderr into two separate results
+ - silent (bool): Allows to disable command_runner's internal logs, except for logging.DEBUG levels which for obvious reasons should never be silenced
  - close_fds (bool): Like Popen, defaults to True on Linux and False on Windows
  - universal_newlines (bool): Like Popen, defaults to False
  - creation_flags (int): Like Popen, defaults to 0

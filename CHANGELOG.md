@@ -1,3 +1,11 @@
+# v1.5.0 - command and conquer them all, nod if you're happy
+
+- New silent parameter disabling all logger calls except of logging.DEBUG levels
+- New on_exit parameter that takes a callback function as argument
+- valid_exit_codes now accept boolean True which means "all" exit codes
+- Fix output capture failure should be an error log instead of debug
+- Fix no longer show debug logging for stdout or stderr when empty
+
 # v1.4.1 - command and conquer them all, don't nod
 
 - Fix endoding always was set to os default unless explicitly disabled by setting `encoding=False`
