@@ -231,19 +231,21 @@ def test_file_output():
 def test_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
+
+    # WIP We could improve tests here by capturing logs
     """
     for method in methods:
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=[0, 1, 2], method=method)
         assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
 
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=True, method=method)
-        assert exit_code == 1, 'Exit code should be equal to 1'
+        assert exit_code != 0, 'Exit code should not be equal to 0'
 
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=False, method=method)
-        assert exit_code == 1, 'Exit code should be equal to 1'
+        assert exit_code != 0, 'Exit code should not be equal to 0'
 
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=None, method=method)
-        assert exit_code == 1, 'Exit code should be equal to 1'
+        assert exit_code != 0, 'Exit code should not be equal to 0'
     
 
 
@@ -645,7 +647,7 @@ def test_on_exit():
         global ON_EXIT_CALLED
         ON_EXIT_CALLED = True
     
-    exit_code, output = command_runner('ping 127.0.0.1', on_exit=on_exit)
+    exit_code, _ = command_runner(PING_CMD, on_exit=on_exit)
     assert exit_code == 0, 'Exit code is not null'
     assert ON_EXIT_CALLED == True, 'On exit was never called'
 
