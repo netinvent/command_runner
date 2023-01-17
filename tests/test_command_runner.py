@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2023 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2023011601'
+__build__ = '2023011701'
 
 
 import sys
@@ -531,7 +531,7 @@ def test_deferred_command():
 def test_powershell_output():
     # Don't bother to test powershell on other platforms than windows
     if os.name != 'nt':
-        return True
+        return None
     """
     Parts from windows_tools.powershell are used here
     """
