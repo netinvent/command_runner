@@ -22,7 +22,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.5.0"
-__build__ = "2023011601"
+__build__ = "2023012101"
 __compat__ = "python2.7+"
 
 import io
@@ -34,10 +34,32 @@ from datetime import datetime
 from logging import getLogger
 from time import sleep
 
+
 try:
     import psutil
 except ImportError:
     # Don't bother with an error since we need command_runner to work without dependencies
+    pass
+try:
+    # Also make sure we directly import priority classes so we can reuse them
+    if os.name == "nt":
+        from psutil import (
+            ABOVE_NORMAL_PRIORITY_CLASS,
+            BELOW_NORMAL_PRIORITY_CLASS,
+            HIGH_PRIORITY_CLASS,
+            IDLE_PRIORITY_CLASS,
+            NORMAL_PRIORITY_CLASS,
+            REALTIME_PRIORITY_CLASS,
+        )
+        from psutil import IOPRIO_HIGH, IOPRIO_NORMAL, IOPRIO_LOW, IOPRIO_VERYLOW
+    else:
+        from psutil import (
+            IOPRIO_CLASS_BE,
+            IOPRIO_CLASS_IDLE,
+            IOPRIO_CLASS_NONE,
+            IOPRIO_CLASS_RT,
+        )
+except (ImportError, AttributeError):
     pass
 try:
     import signal
@@ -188,6 +210,69 @@ def threaded(fn):
 
 logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
+
+
+def _set_priority(
+    pid,  # type: int
+    priority,  # type: Union[int, str]
+    priority_type,  # type: str
+):
+    """
+    Set process and / or io priorities
+    Since Windows and Linux use different possible values, let's simplify things by allowing 3 prioriy types
+    """
+    if priority_type == "process":
+        if isinstance(priority, int) and os.name != "nt" and -20 <= priority <= 20:
+            raise ValueError("Bogus process priority int given: {}".format(priority))
+        elif priority.lower() not in ["low", "normal", "high"]:
+            raise ValueError(
+                "Bogus {} priority given: {}".format(priority_type, priority)
+            )
+
+    if os.name == "nt":
+        priorities = {
+            "process": {
+                "low": BELOW_NORMAL_PRIORITY_CLASS,
+                "normal": NORMAL_PRIORITY_CLASS,
+                "high": HIGH_PRIORITY_CLASS,
+            },
+            "io": {"low": IOPRIO_LOW, "normal": IOPRIO_NORMAL, "high": IOPRIO_HIGH},
+        }
+    else:
+        priorities = {
+            "process": {"low": 15, "normal": 0, "high": -15},
+            "io": {
+                "low": IOPRIO_CLASS_IDLE,
+                "normal": IOPRIO_CLASS_BE,
+                "high": IOPRIO_CLASS_RT,
+            },
+        }
+
+    if priority_type == "process":
+        # Allow direct priority nice settings under linux
+        if isinstance(priority, int):
+            _priority = priority
+        else:
+            _priority = priorities[priority_type][priority]
+        psutil.Process(pid).nice(_priority)
+    elif priority_type == "io":
+        psutil.Process(pid).ionice(priorities[priority_type][priority])
+    else:
+        raise ValueError("Bogus priority type given.")
+
+
+def set_priority(
+    pid,  # type: int
+    priority,  # type: Union[int, str]
+):
+    _set_priority(pid, priority, "process")
+
+
+def set_io_priority(
+    pid,  # type: int
+    priority,  # type: str
+):
+    _set_priority(pid, priority, "io")
 
 
 def to_encoding(
@@ -351,6 +436,8 @@ def command_runner(
     process_callback=None,  # type: Callable
     split_streams=False,  # type: bool
     silent=False,  # type: bool
+    priority=None,  # type: Union[int, str]
+    io_priority=None,  # type: str
     **kwargs  # type: Any
 ):
     # type: (...) -> Union[Tuple[int, Optional[Union[bytes, str]]], Tuple[int, Optional[Union[bytes, str]], Optional[Union[bytes, str]]]]
@@ -378,6 +465,9 @@ def command_runner(
     windows_no_window will disable visible window (MS Windows platform only)
 
     stop_on is an optional function that will stop execution if function returns True
+
+    priority and io_priority can be set to 'low', 'normal' or 'high'
+    priority may also be an int from -20 to 20 on Unix
 
     Returns a tuple (exit_code, output)
     """
@@ -807,6 +897,29 @@ def command_runner(
                 close_fds=close_fds,
                 **kwargs
             )
+
+        # Set process priority if given
+        if priority:
+            try:
+                set_priority(process.pid, priority)
+            except NameError:
+                logger.warning(
+                    "Cannot set process priority. No psutil module installed."
+                )
+                logger.debug("Trace:", exc_info=True)
+            except Exception as exc:
+                logger.warning("Cannot set process priority: {}".format(exc))
+                logger.debug("Trace:", exc_info=True)
+
+        # Set ioi priority if given
+        if io_priority:
+            try:
+                set_io_priority(process.pid, priority)
+            except NameError:
+                logger.warning("Cannot set io priority. No psutil module installed.")
+            except Exception as exc:
+                logger.warning("Cannot set io priority: {}".format(exc))
+                logger.debug("Trace:", exc_info=True)
 
         try:
             # let's return process information if callback was given
