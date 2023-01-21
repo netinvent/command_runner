@@ -652,6 +652,16 @@ def test_on_exit():
     assert ON_EXIT_CALLED == True, 'On exit was never called'
 
 
+def test_priority():
+    def check_nice(process):
+        niceness = os.nice(process.pid)
+        if os.name == 'nt':
+            assert niceness == 16384, 'Process niceness not properly set: {}'.format(niceness)
+        else:
+            assert niceness == 15, 'Process niceness not properly set: {}'.format(niceness)
+    result = command_runner_threaded(PING_CMD, priority='high', io_priority='low', process_callback=check_nice)
+
+
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
     test_standard_ping_with_encoding()
@@ -678,3 +688,4 @@ if __name__ == "__main__":
     test_null_redir()
     test_split_streams()
     test_on_exit()
+    test_priority()
