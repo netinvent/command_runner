@@ -18,12 +18,13 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2023 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2023011701'
+__build__ = '2023012101'
 
 
 import sys
 import os
 import re
+import threading
 import logging
 try:
     from command_runner import *
@@ -659,7 +660,18 @@ def test_priority():
             assert niceness == 16384, 'Process niceness not properly set: {}'.format(niceness)
         else:
             assert niceness == 15, 'Process niceness not properly set: {}'.format(niceness)
-    result = command_runner_threaded(PING_CMD, priority='high', io_priority='low', process_callback=check_nice)
+        print('Nice !')
+
+    def command_runner_thread():
+        return  command_runner_threaded(PING_CMD, priority='low', io_priority='low', process_callback=check_nice)
+
+
+    thread = threading.Thread(
+    target=command_runner_thread, args=()
+    )
+    thread.daemon = True  # thread dies with the program
+    thread.start()
+    
 
 
 if __name__ == "__main__":
