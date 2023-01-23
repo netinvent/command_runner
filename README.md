@@ -16,6 +16,8 @@ while solving various problems a developer may face among:
    - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get to handle output in your application while commands are running
    - Callback to optional stop check so we can stop execution from outside command_runner
    - Callback with optional process information so we get to control the process from outside command_runner
+   - Callback once we're finished to easen thread usage
+   - Optional process priority and io_priority settings
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
@@ -334,7 +336,7 @@ def callback_function(string):
 exit_code, output = command_runner('ping 127.0.0.1', stdout=callback_function, method='poller')
 ```
 
-#### Stop_on
+#### stop_on
 
 In some situations, you want a command to be aborted on some external triggers.
 That's where `stop_on` argument comes in handy.
@@ -402,6 +404,18 @@ def do_something():
 exit_code, output = command_runner('ping 127.0.0.1', on_exit=do_something)
 ```
 
+### Process and IO priority
+`command_runner` can set it's subprocess priority to 'low', 'medium' or 'high', which translate to 15, 0, -15 niceness on Linux and BELOW_NORMAL_PRIORITY_CLASS and HIGH_PRIORITY_CLASS in Windows.
+
+The same applies to IO bound priority.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, output = command_runner('some_intensive_process', priority='low', io_priority='high')
+```
+
 #### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
@@ -423,6 +437,8 @@ It also uses the following standard arguments:
  - process_callback (function): Optional function that will take command_runner spawned process as argument, in order to deal with process info outside of command_runner
  - split_streams (bool): Split stdout and stderr into two separate results
  - silent (bool): Allows to disable command_runner's internal logs, except for logging.DEBUG levels which for obvious reasons should never be silenced
+ - priority (str): Allows to set CPU bound process priority (takes 'low', 'normal' or 'high' parameter)
+ - io_priority (str): Allows to set IO priority for process (takes 'low', 'normal' or 'high' parameter)
  - close_fds (bool): Like Popen, defaults to True on Linux and False on Windows
  - universal_newlines (bool): Like Popen, defaults to False
  - creation_flags (int): Like Popen, defaults to 0
@@ -430,20 +446,6 @@ It also uses the following standard arguments:
 
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
-### logging
-
-Even muted, `command_runner` will still log errors.
-If you want to completely mute `command_runner`, you will have to set it's logger instance to `logger.CRITICAL` level, since this level is never called.
-
-Example of entirely muted `command_runner` execution:
-```
-rom command_runner import command_runner
-import logging
-
-logging.getLogger("command_runner").setLevel(logging.CRITICAL)
-
-err_code, stdout, stderr = command_runner("ping 127.0.0.1", timeout=1, method='monitor', live_output=False, stdout=False, stderr=False, split_streams=True)
-```
 
 ## UAC Elevation / sudo elevation
 
