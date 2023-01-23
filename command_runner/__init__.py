@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.4.1"
-__build__ = "2023010901"
+__version__ = "1.5.0"
+__build__ = "2023012101"
 __compat__ = "python2.7+"
 
 import io
@@ -34,10 +34,32 @@ from datetime import datetime
 from logging import getLogger
 from time import sleep
 
+
 try:
     import psutil
 except ImportError:
     # Don't bother with an error since we need command_runner to work without dependencies
+    pass
+try:
+    # Also make sure we directly import priority classes so we can reuse them
+    if os.name == "nt":
+        from psutil import (
+            ABOVE_NORMAL_PRIORITY_CLASS,
+            BELOW_NORMAL_PRIORITY_CLASS,
+            HIGH_PRIORITY_CLASS,
+            IDLE_PRIORITY_CLASS,
+            NORMAL_PRIORITY_CLASS,
+            REALTIME_PRIORITY_CLASS,
+        )
+        from psutil import IOPRIO_HIGH, IOPRIO_NORMAL, IOPRIO_LOW, IOPRIO_VERYLOW
+    else:
+        from psutil import (
+            IOPRIO_CLASS_BE,
+            IOPRIO_CLASS_IDLE,
+            IOPRIO_CLASS_NONE,
+            IOPRIO_CLASS_RT,
+        )
+except (ImportError, AttributeError):
     pass
 try:
     import signal
@@ -190,6 +212,69 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
+def _set_priority(
+    pid,  # type: int
+    priority,  # type: Union[int, str]
+    priority_type,  # type: str
+):
+    """
+    Set process and / or io priorities
+    Since Windows and Linux use different possible values, let's simplify things by allowing 3 prioriy types
+    """
+    if priority_type == "process":
+        if isinstance(priority, int) and os.name != "nt" and -20 <= priority <= 20:
+            raise ValueError("Bogus process priority int given: {}".format(priority))
+        elif priority.lower() not in ["low", "normal", "high"]:
+            raise ValueError(
+                "Bogus {} priority given: {}".format(priority_type, priority)
+            )
+
+    if os.name == "nt":
+        priorities = {
+            "process": {
+                "low": BELOW_NORMAL_PRIORITY_CLASS,
+                "normal": NORMAL_PRIORITY_CLASS,
+                "high": HIGH_PRIORITY_CLASS,
+            },
+            "io": {"low": IOPRIO_LOW, "normal": IOPRIO_NORMAL, "high": IOPRIO_HIGH},
+        }
+    else:
+        priorities = {
+            "process": {"low": 15, "normal": 0, "high": -15},
+            "io": {
+                "low": IOPRIO_CLASS_IDLE,
+                "normal": IOPRIO_CLASS_BE,
+                "high": IOPRIO_CLASS_RT,
+            },
+        }
+
+    if priority_type == "process":
+        # Allow direct priority nice settings under linux
+        if isinstance(priority, int):
+            _priority = priority
+        else:
+            _priority = priorities[priority_type][priority]
+        psutil.Process(pid).nice(_priority)
+    elif priority_type == "io":
+        psutil.Process(pid).ionice(priorities[priority_type][priority])
+    else:
+        raise ValueError("Bogus priority type given.")
+
+
+def set_priority(
+    pid,  # type: int
+    priority,  # type: Union[int, str]
+):
+    _set_priority(pid, priority, "process")
+
+
+def set_io_priority(
+    pid,  # type: int
+    priority,  # type: str
+):
+    _set_priority(pid, priority, "io")
+
+
 def to_encoding(
     process_output,  # type: Union[str, bytes]
     encoding,  # type: Optional[str]
@@ -214,7 +299,7 @@ def to_encoding(
                 process_output = process_output.decode(encoding, errors="ignore")
             except (ValueError, TypeError):
                 # What happens when str cannot be concatenated
-                logger.debug("Output cannot be captured {}".format(process_output))
+                logger.error("Output cannot be captured {}".format(process_output))
     return process_output
 
 
@@ -336,7 +421,7 @@ def kill_childs_mod(
 
 def command_runner(
     command,  # type: Union[str, List[str]]
-    valid_exit_codes=None,  # type: Optional[List[int]]
+    valid_exit_codes=False,  # type: Union[List[int], bool]
     timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
     encoding=None,  # type: Optional[Union[str, bool]]
@@ -347,8 +432,12 @@ def command_runner(
     method="monitor",  # type: str
     check_interval=0.05,  # type: float
     stop_on=None,  # type: Callable
+    on_exit=None,  # type: Callable
     process_callback=None,  # type: Callable
     split_streams=False,  # type: bool
+    silent=False,  # type: bool
+    priority=None,  # type: Union[int, str]
+    io_priority=None,  # type: str
     **kwargs  # type: Any
 ):
     # type: (...) -> Union[Tuple[int, Optional[Union[bytes, str]]], Tuple[int, Optional[Union[bytes, str]], Optional[Union[bytes, str]]]]
@@ -376,6 +465,9 @@ def command_runner(
     windows_no_window will disable visible window (MS Windows platform only)
 
     stop_on is an optional function that will stop execution if function returns True
+
+    priority and io_priority can be set to 'low', 'normal' or 'high'
+    priority may also be an int from -20 to 20 on Unix
 
     Returns a tuple (exit_code, output)
     """
@@ -806,6 +898,29 @@ def command_runner(
                 **kwargs
             )
 
+        # Set process priority if given
+        if priority:
+            try:
+                set_priority(process.pid, priority)
+            except NameError:
+                logger.warning(
+                    "Cannot set process priority. No psutil module installed."
+                )
+                logger.debug("Trace:", exc_info=True)
+            except Exception as exc:
+                logger.warning("Cannot set process priority: {}".format(exc))
+                logger.debug("Trace:", exc_info=True)
+
+        # Set ioi priority if given
+        if io_priority:
+            try:
+                set_io_priority(process.pid, priority)
+            except NameError:
+                logger.warning("Cannot set io priority. No psutil module installed.")
+            except Exception as exc:
+                logger.warning("Cannot set io priority: {}".format(exc))
+                logger.debug("Trace:", exc_info=True)
+
         try:
             # let's return process information if callback was given
             if callable(process_callback):
@@ -855,23 +970,29 @@ def command_runner(
             output_stdout = exc.output
         except AttributeError:
             output_stdout = "command_runner: Could not obtain output from command."
-        if exit_code in valid_exit_codes if valid_exit_codes is not None else [0]:
-            logger.debug(
-                'Command "{}" returned with exit code "{}". Command output was:'.format(
-                    command, exit_code
+
+        logger_fn = logger.error
+        valid_exit_codes_msg = ""
+        if valid_exit_codes:
+            if valid_exit_codes is True or exit_code in valid_exit_codes:
+                logger_fn = logger.info
+                valid_exit_codes_msg = " allowed"
+
+        if not silent:
+            logger_fn(
+                'Command "{}" failed with{} exit code "{}". Command output was:'.format(
+                    command,
+                    valid_exit_codes_msg,
+                    exc.returncode,
                 )
             )
-        logger.error(
-            'Command "{}" failed with exit code "{}". Command output was:'.format(
-                command, exc.returncode
-            )
-        )
-        logger.error(output_stdout)
+            logger_fn(output_stdout)
     except FileNotFoundError as exc:
         message = 'Command "{}" failed, file not found: {}'.format(
             command, to_encoding(exc.__str__(), error_encoding, errors)
         )
-        logger.error(message)
+        if not silent:
+            logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-253, message)
@@ -881,7 +1002,8 @@ def command_runner(
         message = 'Command "{}" failed because of OS: {}'.format(
             command, to_encoding(exc.__str__(), error_encoding, errors)
         )
-        logger.error(message)
+        if not silent:
+            logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-253, message)
@@ -889,7 +1011,8 @@ def command_runner(
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
             timeout, command, exc.output
         )
-        logger.error(message)
+        if not silent:
+            logger.error(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-254, message)
@@ -897,25 +1020,28 @@ def command_runner(
         message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
             command, to_encoding(exc.output, error_encoding, errors)
         )
-        logger.info(message)
+        if not silent:
+            logger.info(message)
         if stdout_destination == "file":
             _stdout.write(message.encode(error_encoding, errors=errors))
         exit_code, output_stdout = (-251, message)
     except ValueError as exc:
         message = to_encoding(exc.__str__(), error_encoding, errors)
-        logger.error(message, exc_info=True)
+        if not silent:
+            logger.error(message, exc_info=True)
         if stdout_destination == "file":
             _stdout.write(message)
         exit_code, output_stdout = (-250, message)
     # We need to be able to catch a broad exception
     # pylint: disable=W0703
     except Exception as exc:
-        logger.error(
-            'Command "{}" failed for unknown reasons: {}'.format(
-                command, to_encoding(exc.__str__(), error_encoding, errors)
-            ),
-            exc_info=True,
-        )
+        if not silent:
+            logger.error(
+                'Command "{}" failed for unknown reasons: {}'.format(
+                    command, to_encoding(exc.__str__(), error_encoding, errors)
+                ),
+                exc_info=True,
+            )
         exit_code, output_stdout = (
             -255,
             to_encoding(exc.__str__(), error_encoding, errors),
@@ -926,17 +1052,13 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    logger.debug(
-        "STDOUT: " + to_encoding(output_stdout, error_encoding, errors)
-        if output_stdout
-        else "None"
-    )
+    stdout_output = to_encoding(output_stdout, error_encoding, errors)
+    if stdout_output:
+        logger.debug("STDOUT: " + stdout_output)
     if stderr_destination not in ["stdout", None]:
-        logger.debug(
-            "STDERR: " + to_encoding(output_stderr, error_encoding, errors)
-            if output_stderr
-            else "None"
-        )
+        stderr_output = to_encoding(output_stderr, error_encoding, errors)
+        if stderr_output:
+            logger.debug("STDERR: " + stderr_output)
 
     # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
@@ -958,6 +1080,10 @@ def command_runner(
         output_stderr is not None and len(output_stderr) == 0
     ):
         output_stderr = None
+
+    if on_exit:
+        logger.debug("Running on_exit callable.")
+        on_exit()
 
     if split_streams:
         return exit_code, output_stdout, output_stderr

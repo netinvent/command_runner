@@ -16,6 +16,8 @@ while solving various problems a developer may face among:
    - Allow stdout/stderr stream output to be redirected to callback functions / output queues / files so you get to handle output in your application while commands are running
    - Callback to optional stop check so we can stop execution from outside command_runner
    - Callback with optional process information so we get to control the process from outside command_runner
+   - Callback once we're finished to easen thread usage
+   - Optional process priority and io_priority settings
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
@@ -144,15 +146,26 @@ Be aware that under MS Windows, no direct process tree is available.
 We fixed this by walking processes during runtime. The drawback is that orphaned processes cannot be identified this way.
 
 
-#### Disabling logs
+#### Disabling logs / silencing
 
-Whenever you want another loglevel for command_runner, you might do with the following statement in your code
+`command_runner` has it's own logging system, which will log all sorts of error logs.
+If you need to disable it's logging, just run with argument silent.
+Be aware that logging.DEBUG log levels won't be silenced, by design.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, output = command_runner('ping 127.0.0.1', silent=True)
+```
+
+If you also need to disable logging.DEBUG level, you can run the following code which will required logging.CRITICAL only messages which `command_runner` never does:
 
 ```python
 import logging
 import command_runner
 
-logging.getLogger('command_runner').setLevel(logging.ERROR)
+logging.getLogger('command_runner').setLevel(logging.CRITICAL)
 ```
 
 #### Capture method
@@ -323,7 +336,7 @@ def callback_function(string):
 exit_code, output = command_runner('ping 127.0.0.1', stdout=callback_function, method='poller')
 ```
 
-#### Stop_on
+#### stop_on
 
 In some situations, you want a command to be aborted on some external triggers.
 That's where `stop_on` argument comes in handy.
@@ -376,6 +389,32 @@ print('stdout', stdout)
 print('stderr', stderr)
 ```
 
+#### On-exit Callback
+
+`command_runner` allows to execute a callback function once it has finished it's execution.
+This might help building threaded programs where a callback is needed to disable GUI elements for example.
+
+Example:
+```python
+from command_runner import command_runner
+
+def do_something():
+    print("We're done running")
+
+exit_code, output = command_runner('ping 127.0.0.1', on_exit=do_something)
+```
+
+### Process and IO priority
+`command_runner` can set it's subprocess priority to 'low', 'medium' or 'high', which translate to 15, 0, -15 niceness on Linux and BELOW_NORMAL_PRIORITY_CLASS and HIGH_PRIORITY_CLASS in Windows.
+
+The same applies to IO bound priority.
+
+Example:
+```python
+from command_runner import command_runner
+
+exit_code, output = command_runner('some_intensive_process', priority='low', io_priority='high')
+```
 
 #### Other arguments
 
@@ -389,13 +428,17 @@ It also uses the following standard arguments:
  - encoding (str/bool): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
  - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
  - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
- - split_streams (bool): Split stdout and stderr into two separate results
  - windows_no_window (bool): Shall a command create a console window (MS Windows only), defaults to False
  - live_output (bool): Print output to stdout while executing command, defaults to False
  - method (str): Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
  - check interval (float): Defaults to 0.05 seconds, which is the time between stream readings and timeout checks
  - stop_on (function): Optional function that when returns True stops command_runner execution
+ - on_exit (function): Optional function that gets executed when command_runner has finished (callback function)
  - process_callback (function): Optional function that will take command_runner spawned process as argument, in order to deal with process info outside of command_runner
+ - split_streams (bool): Split stdout and stderr into two separate results
+ - silent (bool): Allows to disable command_runner's internal logs, except for logging.DEBUG levels which for obvious reasons should never be silenced
+ - priority (str): Allows to set CPU bound process priority (takes 'low', 'normal' or 'high' parameter)
+ - io_priority (str): Allows to set IO priority for process (takes 'low', 'normal' or 'high' parameter)
  - close_fds (bool): Like Popen, defaults to True on Linux and False on Windows
  - universal_newlines (bool): Like Popen, defaults to False
  - creation_flags (int): Like Popen, defaults to 0
@@ -403,20 +446,6 @@ It also uses the following standard arguments:
 
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
-### logging
-
-Even muted, `command_runner` will still log errors.
-If you want to completely mute `command_runner`, you will have to set it's logger instance to `logger.CRITICAL` level, since this level is never called.
-
-Example of entirely muted `command_runner` execution:
-```
-rom command_runner import command_runner
-import logging
-
-logging.getLogger("command_runner").setLevel(logging.CRITICAL)
-
-err_code, stdout, stderr = command_runner("ping 127.0.0.1", timeout=1, method='monitor', live_output=False, stdout=False, stderr=False, split_streams=True)
-```
 
 ## UAC Elevation / sudo elevation
 

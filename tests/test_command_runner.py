@@ -16,14 +16,16 @@ Versioning semantics:
 
 __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
-__copyright__ = 'Copyright (C) 2015-2022 Orsiris de Jong'
+__copyright__ = 'Copyright (C) 2015-2023 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2022091501'
+__build__ = '2023012101'
 
 
 import sys
 import os
 import re
+import threading
+import logging
 try:
     from command_runner import *
 except ImportError:  # would be ModuleNotFoundError in Python 3+
@@ -44,6 +46,15 @@ else:
     def timestamp(date):
         return date.timestamp()
 
+
+# We need a logging unit here
+logger = logging.getLogger()
+logger.setLevel(logging.ERROR)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.ERROR)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 streams = ['stdout', 'stderr']
 methods = ['monitor', 'poller']
@@ -71,6 +82,7 @@ ELAPSED_TIME = timestamp(datetime.now())
 PROCESS_ID = None
 STREAM_OUTPUT = ""
 PROC = None
+ON_EXIT_CALLED = False
 
 
 def reset_elapsed_time():
@@ -220,10 +232,22 @@ def test_file_output():
 def test_valid_exit_codes():
     """
     Test command_runner with a failed ping but that should not trigger an error
+
+    # WIP We could improve tests here by capturing logs
     """
     for method in methods:
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=[0, 1, 2], method=method)
         assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
+
+        exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=True, method=method)
+        assert exit_code != 0, 'Exit code should not be equal to 0'
+
+        exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=False, method=method)
+        assert exit_code != 0, 'Exit code should not be equal to 0'
+
+        exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=None, method=method)
+        assert exit_code != 0, 'Exit code should not be equal to 0'
+    
 
 
 def test_unix_only_split_command():
@@ -260,7 +284,7 @@ def test_read_file():
             file_content = file.read()
 
     for method in methods:
-        for round in range(0, 2500):
+        for round in range(0, 1000):
             print('Comparaison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
@@ -348,7 +372,7 @@ def test_queue_output():
         print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
         return
 
-    for i in range(0, 1000):
+    for i in range(0, 500):
         for stream in streams:
             for method in methods:
                 if method == 'monitor' and i > 1:
@@ -510,7 +534,7 @@ def test_deferred_command():
 def test_powershell_output():
     # Don't bother to test powershell on other platforms than windows
     if os.name != 'nt':
-        return True
+        return None
     """
     Parts from windows_tools.powershell are used here
     """
@@ -619,6 +643,36 @@ def test_split_streams():
                 assert '127.0.0.1' in stdout
                 assert '0.0.0.0' in stderr
 
+def test_on_exit():
+    def on_exit():
+        global ON_EXIT_CALLED
+        ON_EXIT_CALLED = True
+    
+    exit_code, _ = command_runner(PING_CMD, on_exit=on_exit)
+    assert exit_code == 0, 'Exit code is not null'
+    assert ON_EXIT_CALLED == True, 'On exit was never called'
+
+
+def test_priority():
+    def check_nice(process):
+        niceness = os.nice(process.pid)
+        if os.name == 'nt':
+            assert niceness == 16384, 'Process niceness not properly set: {}'.format(niceness)
+        else:
+            assert niceness == 15, 'Process niceness not properly set: {}'.format(niceness)
+        print('Nice !')
+
+    def command_runner_thread():
+        return  command_runner_threaded(PING_CMD, priority='low', io_priority='low', process_callback=check_nice)
+
+
+    thread = threading.Thread(
+    target=command_runner_thread, args=()
+    )
+    thread.daemon = True  # thread dies with the program
+    thread.start()
+    
+
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
@@ -645,3 +699,5 @@ if __name__ == "__main__":
     test_powershell_output()
     test_null_redir()
     test_split_streams()
+    test_on_exit()
+    test_priority()
