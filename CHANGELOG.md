@@ -3,6 +3,8 @@
 - New silent parameter disabling all logger calls except of logging.DEBUG levels
 - New on_exit parameter that takes a callback function as argument
 - valid_exit_codes now accept boolean True which means "all" exit codes
+- New priority parameter
+- New io_priority parameter
 - Fix output capture failure should be an error log instead of debug
 - Fix no longer show debug logging for stdout or stderr when empty
 
