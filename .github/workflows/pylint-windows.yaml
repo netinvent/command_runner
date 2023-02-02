@@ -24,8 +24,6 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --upgrade setuptools
         if (Test-Path "command_runner/requirements.txt") { pip install -r command_runner/requirements.txt }
-        # Add additional windows requirements
-        if (Test-Path "command_runner/requirements-win.txt") { pip install -r command_runner/requirements-win.txt }
     - name: Lint with Pylint
       if: ${{ matrix.python-version == '3.9' }}
       run: |
