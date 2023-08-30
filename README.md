@@ -57,7 +57,7 @@ The following example will work regardless of the host OS and the Python version
 ```python
 from command_runner import command_runner
 
-exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8')
+exit_code, output = command_runner('ping 127.0.0.1', timeout=10)
 ```
 
 
@@ -73,7 +73,7 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=30, encoding='utf-8
 
 #### Special exit codes
 
-In order to keep the promise to always provide an exit_code, some arbitrary exit codes have been added for the case where none is given.
+In order to keep the promise to always provide an exit_code, spcial exit codes have been added for the case where none is given.
 Those exit codes are:
 
 - -250 : command_runner called with incompatible arguments
@@ -98,8 +98,7 @@ command = r'C:\Windows\sysnative\WindowsPowerShell\v1.0\powershell.exe --help'
 exit_code, output = command_runner(command, encoding='unicode_escape')
 ```
 
-Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.
-
+Earlier subprocess.popen implementations didn't have an encoding setting so command_runner will deal with encoding for those.   
 You can also disable command_runner's internal encoding in order to get raw process output (bytes) by passing False boolean.
 
 Example:
