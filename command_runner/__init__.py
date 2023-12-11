@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.5.0"
-__build__ = "2023012101"
+__version__ = "1.5.1"
+__build__ = "2023121101"
 __compat__ = "python2.7+"
 
 import io
