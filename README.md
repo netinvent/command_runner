@@ -404,9 +404,10 @@ exit_code, output = command_runner('ping 127.0.0.1', on_exit=do_something)
 ```
 
 ### Process and IO priority
-`command_runner` can set it's subprocess priority to 'low', 'medium' or 'high', which translate to 15, 0, -15 niceness on Linux and BELOW_NORMAL_PRIORITY_CLASS and HIGH_PRIORITY_CLASS in Windows.
+`command_runner` can set it's subprocess priority to 'low', 'normal' or 'high', which translate to 15, 0, -15 niceness on Linux and BELOW_NORMAL_PRIORITY_CLASS and HIGH_PRIORITY_CLASS in Windows.
+On Linux, you may also directly use priority with niceness int values.
 
-The same applies to IO bound priority.
+You may also set subprocess io priority to 'low', 'normal' or 'high'.
 
 Example:
 ```python

@@ -221,13 +221,18 @@ def _set_priority(
     Set process and / or io priorities
     Since Windows and Linux use different possible values, let's simplify things by allowing 3 prioriy types
     """
+    priority = priority.lower()
+
     if priority_type == "process":
         if isinstance(priority, int) and os.name != "nt" and -20 <= priority <= 20:
             raise ValueError("Bogus process priority int given: {}".format(priority))
-        elif priority.lower() not in ["low", "normal", "high"]:
+        elif priority not in ["low", "normal", "high"]:
             raise ValueError(
                 "Bogus {} priority given: {}".format(priority_type, priority)
             )
+
+    if priority_type == "io" and priority not in ["low", "normal", "high"]:
+        raise ValueError("Bogus {} priority given: {}".format(priority_type, priority))
 
     if os.name == "nt":
         priorities = {
@@ -901,25 +906,37 @@ def command_runner(
         # Set process priority if given
         if priority:
             try:
-                set_priority(process.pid, priority)
+                try:
+                    set_priority(process.pid, priority)
+                except psutil.AccessDenied as exc:
+                    logger.warning(
+                        "Cannot set process priority {}. Access denied.".format(exc)
+                    )
+                except Exception as exc:
+                    logger.warning("Cannot set process priority: {}".format(exc))
+                    logger.debug("Trace:", exc_info=True)
             except NameError:
                 logger.warning(
                     "Cannot set process priority. No psutil module installed."
                 )
                 logger.debug("Trace:", exc_info=True)
-            except Exception as exc:
-                logger.warning("Cannot set process priority: {}".format(exc))
-                logger.debug("Trace:", exc_info=True)
-
-        # Set ioi priority if given
+        # Set io priority if given
         if io_priority:
             try:
-                set_io_priority(process.pid, priority)
+                try:
+                    set_io_priority(process.pid, io_priority)
+                except psutil.AccessDenied as exc:
+                    logger.warning(
+                        "Cannot set io priority for process {}: access denied.".format(
+                            exc
+                        )
+                    )
+                except Exception as exc:
+                    logger.warning("Cannot set io priority: {}".format(exc))
+                    logger.debug("Trace:", exc_info=True)
+                    raise
             except NameError:
                 logger.warning("Cannot set io priority. No psutil module installed.")
-            except Exception as exc:
-                logger.warning("Cannot set io priority: {}".format(exc))
-                logger.debug("Trace:", exc_info=True)
 
         try:
             # let's return process information if callback was given
