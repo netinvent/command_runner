@@ -21,7 +21,7 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.5.1"
+__version__ = "1.5.2"
 __build__ = "2023122701"
 __compat__ = "python2.7+"
 
@@ -446,6 +446,7 @@ def command_runner(
     encoding=None,  # type: Optional[Union[str, bool]]
     stdout=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     stderr=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
+    no_close_queues=False,  # type: Optional[bool]
     windows_no_window=False,  # type: bool
     live_output=False,  # type: bool
     method="monitor",  # type: str
@@ -1091,12 +1092,13 @@ def command_runner(
         if stderr_output:
             logger.debug("STDERR: " + stderr_output)
 
-    # Make sure we send a simple queue end before leaving to make any queue read process will stop regardless
+    # Make sure we send a simple queue end before leaving to make sure any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
-    if stdout_destination == "queue":
-        stdout.put(None)
-    if stderr_destination == "queue":
-        stderr.put(None)
+    if not no_close_queues:
+        if stdout_destination == "queue":
+            stdout.put(None)
+        if stderr_destination == "queue":
+            stderr.put(None)
 
     # With polling, we return None if nothing has been send to the queues
     # With monitor, process.communicate() will result in '' even if nothing has been sent
