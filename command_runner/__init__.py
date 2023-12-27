@@ -22,7 +22,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.5.1"
-__build__ = "2023121101"
+__build__ = "2023122701"
 __compat__ = "python2.7+"
 
 import io
@@ -176,6 +176,18 @@ def call_with_future(fn, future, args, kwargs):
     Threading a function with return info using Future
     from https://stackoverflow.com/a/19846691/2635443
 
+    Example:
+
+    @threaded
+    def somefunc(arg):
+        return 'arg was %s' % arg
+
+
+    thread = somefunc('foo')
+    while thread.done() is False:
+        time.sleep(1)
+
+    print(thread.result())
     """
     try:
         result = fn(*args, **kwargs)
@@ -196,15 +208,17 @@ def threaded(fn):
 
     @wraps(fn)
     def wrapper(*args, **kwargs):
+        if kwargs.pop("__no_threads", False):
+            return fn(*args, **kwargs)
         future = Future()
-        threading.Thread(
+        thread = threading.Thread(
             target=call_with_future, args=(fn, future, args, kwargs)
-        ).start()
+        )
+        thread.daemon = True
+        thread.start()
         return future
 
     return wrapper
-
-
 ### END DIRECT IMPORT FROM ofunctions.threading
 
 
