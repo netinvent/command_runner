@@ -428,6 +428,7 @@ It also uses the following standard arguments:
  - encoding (str/bool): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
  - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
  - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
+ - no_close_queues (bool): Normally, command_runner sends None to stdout / stderr queues when process is finished. This behavior can be disabled allowing to reuse those queues for other functions wrapping command_runner
  - windows_no_window (bool): Shall a command create a console window (MS Windows only), defaults to False
  - live_output (bool): Print output to stdout while executing command, defaults to False
  - method (str): Accepts 'poller' or 'monitor' stdout capture and timeout monitoring methods
