@@ -60,7 +60,7 @@ logger.addHandler(handler)
 streams = ['stdout', 'stderr']
 methods = ['monitor', 'poller']
 
-test_filename = 'README.md'
+TEST_FILENAME = 'README.md'
 if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
@@ -69,13 +69,13 @@ if os.name == 'nt':
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
     PING_FAILURE = 'ping 0.0.0.0 -n 2 1>&2'
 
-    PRINT_FILE_CMD = 'type {}'.format(test_filename)
+    PRINT_FILE_CMD = 'type {}'.format(TEST_FILENAME)
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '-c', '4', '127.0.0.1']
     PING_CMD_REDIR = 'ping -c 4 127.0.0.1 1>&2'
     PING_CMD_AND_FAILURE = 'ping -c 2 0.0.0.0 1>&2; ping -c 2 127.0.0.1'
-    PRINT_FILE_CMD = 'cat {}'.format(test_filename)
+    PRINT_FILE_CMD = 'cat {}'.format(TEST_FILENAME)
     PING_FAILURE = 'ping -c 2 0.0.0.0 1>&2'
 
 
@@ -278,10 +278,10 @@ def test_read_file():
 
     # We don't have encoding argument in Python 2, yet we need it for PyPy
     if sys.version_info[0] < 3:
-        with open(test_filename, 'r') as file:
+        with open(TEST_FILENAME, 'r') as file:
             file_content = file.read()
     else:
-        with open(test_filename, 'r', encoding=ENCODING) as file:
+        with open(TEST_FILENAME, 'r', encoding=ENCODING) as file:
             file_content = file.read()
 
     for method in methods:
@@ -294,7 +294,7 @@ def test_read_file():
             if os.name == 'nt':
                 output = output.replace('\r\n', '\n')
 
-            assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(test_filename, method, exit_code,
+            assert exit_code == 0, 'Did not succeed to read {}, method={}, exit_code: {}, output: {}'.format(TEST_FILENAME, method, exit_code,
                                                                                                  output)
             assert file_content == output, 'Round {} File content and output are not identical, method={}'.format(round, method)
 
@@ -472,7 +472,7 @@ def test_queue_non_threaded_command_runner():
 
 def test_double_queue_threaded_stop():
     """
-    Use both stdout and stderr queues and make em stop
+    Use both stdout and stderr queues and make them stop
     """
 
     if sys.version_info[0] < 3:
@@ -517,7 +517,7 @@ def test_double_queue_threaded_stop():
             break
         sleep(1)
 
-    exit_code, output = thread_result.result()
+    exit_code, _ = thread_result.result()
     assert exit_code == 0, 'We did not succeed in running the thread'
 
 
@@ -538,7 +538,7 @@ def test_deferred_command():
 def test_powershell_output():
     # Don't bother to test powershell on other platforms than windows
     if os.name != 'nt':
-        return None
+        return
     """
     Parts from windows_tools.powershell are used here
     """
@@ -627,7 +627,7 @@ def test_split_streams():
             print('cmd={}, method={}'.format(cmd, method))
 
             try:
-                exit_code, output = command_runner(cmd, method=method, shell=True, split_streams=True)
+                exit_code, _ = command_runner(cmd, method=method, shell=True, split_streams=True)
             except ValueError:
                 # Should generate a valueError
                 pass
@@ -654,7 +654,7 @@ def test_on_exit():
     
     exit_code, _ = command_runner(PING_CMD, on_exit=on_exit)
     assert exit_code == 0, 'Exit code is not null'
-    assert ON_EXIT_CALLED == True, 'On exit was never called'
+    assert ON_EXIT_CALLED is True, 'On exit was never called'
 
 
 def test_priority():
