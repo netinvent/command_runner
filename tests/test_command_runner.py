@@ -18,11 +18,12 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2023 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2023012101'
+__build__ = '2023122801'
 
 
 import sys
 import os
+import platform
 import re
 import threading
 import logging
@@ -284,7 +285,10 @@ def test_read_file():
             file_content = file.read()
 
     for method in methods:
-        for round in range(0, 350):
+        # pypy is quite slow with poller method on github actions.
+        # Lets lower rounds
+        max_rounds = 50 if platform.python_implementation() == 'PyPy' else 1000
+        for round in range(0, max_rounds):
             print('Comparaison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
