@@ -28,10 +28,10 @@ Versioning semantics:
 
 __intname__ = "command_runner.elevate"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2017-2021 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2017-2023 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "0.3.1"
-__build__ = "2021031601"
+__version__ = "0.3.2"
+__build__ = "2023122801"
 
 from logging import getLogger
 import os
@@ -159,6 +159,7 @@ def _check_environment():
     # | Win | sys.executable | C:\Python\python.exe          | C:\Python\Python.exe | C:\absolute\path\to\test.exe |
     # --------------------------------------------------------------------------------------------------------------
 
+    # Nuitka > 0.8 just declares __compiled__ variables
     # Nuitka 0.6.2 and newer define builtin __nuitka_binary_dir
     # Nuitka does not set the frozen attribute on sys
     # Nuitka < 0.6.2 can be detected in sloppy ways, ie if not sys.argv[0].endswith('.py') or len(sys.path) < 3
@@ -166,7 +167,7 @@ def _check_environment():
     is_nuitka_compiled = False
     try:
         # Actual if statement not needed, but keeps code inspectors more happy
-        if __nuitka_binary_dir or "__compiled__" in globals() is not None:
+        if "__compiled__" in globals():
             is_nuitka_compiled = True
     except NameError:
         pass
