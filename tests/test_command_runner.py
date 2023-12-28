@@ -383,7 +383,11 @@ def test_queue_output():
         print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
         return
 
-    for i in range(0, 500):
+    # pypy is quite slow with poller method on github actions.
+    # Lets lower rounds
+    max_rounds = 100 if is_pypy() else 1000
+    print("\nSetting up test_read_file for {} rounds".format(max_rounds))
+    for i in range(0, max_rounds):
         for stream in streams:
             for method in methods:
                 if method == 'monitor' and i > 1:
