@@ -117,11 +117,12 @@ except AttributeError:
         Basic redeclaration when subprocess.TimeoutExpired does not exist, python <= 3.3
         """
 
-        def __init__(self, cmd, timeout, output=None, stderr=None):
+        def __init__(self, cmd, timeout, output=None, stderr=None, *args, **kwargs):
             self.cmd = cmd
             self.timeout = timeout
             self.output = output
             self.stderr = stderr
+            super().__init__(*args, **kwargs)
 
         def __str__(self):
             return "Command '%s' timed out after %s seconds" % (self.cmd, self.timeout)
@@ -142,9 +143,9 @@ class InterruptGetOutput(BaseException):
     Make sure we get the current output when process is stopped mid-execution
     """
 
-    def __init__(self, output):
+    def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
     @property
     def output(self):
@@ -156,9 +157,9 @@ class KbdInterruptGetOutput(InterruptGetOutput):
     Make sure we get the current output when KeyboardInterrupt is made
     """
 
-    def __init__(self, output):
+    def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__()
+        super().__init__(output, *args, **kwargs)
 
     @property
     def output(self):
@@ -170,9 +171,9 @@ class StopOnInterrupt(InterruptGetOutput):
     Make sure we get the current output when optional stop_on function execution returns True
     """
 
-    def __init__(self, output):
+    def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__()
+        super().__init__(output, *args, **kwargs)
 
     @property
     def output(self):
