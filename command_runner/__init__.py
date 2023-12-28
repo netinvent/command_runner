@@ -87,9 +87,15 @@ except ImportError:
     # Python 2.7 just won't have concurrent.futures, so we just declare threaded and wraps in order to
     # avoid NameError
     def threaded(fn):
+        """
+        Simple placeholder for python 2.7
+        """
         return fn
 
     def wraps(fn):
+        """
+        Simple placeholder for python 2.7
+        """
         return fn
 
 
@@ -138,6 +144,7 @@ class InterruptGetOutput(BaseException):
 
     def __init__(self, output):
         self._output = output
+        super().__init__()
 
     @property
     def output(self):
@@ -151,6 +158,7 @@ class KbdInterruptGetOutput(InterruptGetOutput):
 
     def __init__(self, output):
         self._output = output
+        super().__init__()
 
     @property
     def output(self):
@@ -164,6 +172,7 @@ class StopOnInterrupt(InterruptGetOutput):
 
     def __init__(self, output):
         self._output = output
+        super().__init__()
 
     @property
     def output(self):
@@ -242,7 +251,7 @@ def _set_priority(
     if priority_type == "process":
         if isinstance(priority, int) and os.name != "nt" and -20 <= priority <= 20:
             raise ValueError("Bogus process priority int given: {}".format(priority))
-        elif priority not in ["low", "normal", "high"]:
+        if priority not in ["low", "normal", "high"]:
             raise ValueError(
                 "Bogus {} priority given: {}".format(priority_type, priority)
             )
@@ -286,6 +295,9 @@ def set_priority(
     pid,  # type: int
     priority,  # type: Union[int, str]
 ):
+    """
+    Shorthand for _set_priority
+    """
     _set_priority(pid, priority, "process")
 
 
@@ -293,6 +305,9 @@ def set_io_priority(
     pid,  # type: int
     priority,  # type: str
 ):
+    """
+    Shorthand for _set_priority
+    """
     _set_priority(pid, priority, "io")
 
 
@@ -745,8 +760,7 @@ def command_runner(
             exit_code = process.poll()
             if split_streams:
                 return exit_code, output_stdout, output_stderr
-            else:
-                return exit_code, output_stdout
+            return exit_code, output_stdout
 
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
@@ -857,12 +871,11 @@ def command_runner(
                 raise TimeoutExpired(
                     process, timeout, _get_error_output(output_stdout, output_stderr)
                 )
-            elif must_stop["value"] == "S":
+            if must_stop["value"] == "S":
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
             if split_streams:
                 return exit_code, output_stdout, output_stderr
-            else:
-                return exit_code, output_stdout
+            return exit_code, output_stdout
         except KeyboardInterrupt:
             raise KbdInterruptGetOutput(_get_error_output(output_stdout, output_stderr))
 
@@ -1122,8 +1135,7 @@ def command_runner(
 
     if split_streams:
         return exit_code, output_stdout, output_stderr
-    else:
-        return exit_code, _get_error_output(output_stdout, output_stderr)
+    return exit_code, _get_error_output(output_stdout, output_stderr)
 
 
 if sys.version_info[0] >= 3:
