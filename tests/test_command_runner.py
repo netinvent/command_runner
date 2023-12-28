@@ -104,6 +104,13 @@ def running_on_github_actions():
     return os.environ.get("RUNNING_ON_GITHUB_ACTIONS") == "true"  # bash 'true'
 
 
+def is_pypy():
+    """
+    Checks interpreter
+    """
+    return True if platform.python_implementation().lower() == "pypy" else False
+
+
 def test_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
@@ -283,11 +290,11 @@ def test_read_file():
     else:
         with open(TEST_FILENAME, 'r', encoding=ENCODING) as file:
             file_content = file.read()
-
     for method in methods:
         # pypy is quite slow with poller method on github actions.
         # Lets lower rounds
-        max_rounds = 50 if platform.python_implementation() == 'PyPy' else 1000
+        max_rounds = 100 if is_pypy() else 1000
+        print("\nSetting up test_read_file for {} rounds".format(max_rounds))
         for round in range(0, max_rounds):
             print('Comparaison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
