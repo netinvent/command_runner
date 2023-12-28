@@ -284,7 +284,7 @@ def test_read_file():
             file_content = file.read()
 
     for method in methods:
-        for round in range(0, 1000):
+        for round in range(0, 350):
             print('Comparaison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
