@@ -1,3 +1,17 @@
+# v1.5.2 - leave the queues alone
+
+- New `no_close_queues` parameter to leave stdout/stderr queues open for later usage by parent functions
+- Updated ofunctions.threading implementation to v2.1.0
+- Added python 3.12 and pypy 3.10 to test matrix
+- poller/monitor tests now have less rounds in pypy python implementation (takes too long on Github actions)
+- Various minor linter fixes
+
+# v1.5.1 - Let's get your priorities right
+
+- IO priority was set with process priority values instead of IO priority values
+- Failing to set process/IO priority because of insufficient permissions now shows a proper warning message in logs
+- priorities are now case insensitive
+
 # v1.5.0 - command and conquer them all, nod if you're happy
 
 - New silent parameter disabling all logger calls except of logging.DEBUG levels
