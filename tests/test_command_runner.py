@@ -677,6 +677,58 @@ def test_priority():
     thread.start()
     
 
+def test_no_close_queues():
+    """
+    Test no_close_queues
+    """
+
+    if sys.version_info[0] < 3:
+        print("Queue test uses concurrent futures. Won't run on python 2.7, sorry.")
+        return
+
+    stdout_queue = queue.Queue()
+    stderr_queue = queue.Queue()
+    thread_result = command_runner_threaded(
+        PING_CMD_AND_FAILURE, method='poller',
+        shell=True, stdout=stdout_queue, stderr=stderr_queue, no_close_queues=True)
+
+    print('Begin to read queues')
+    read_stdout = read_stderr = True
+    wait_period = 50 # let's have 100 rounds of 2x timeout 0.1s = 10 seconds, which should be enough for exec to terminate
+    while read_stdout or read_stderr:
+        try:
+            stdout_line = stdout_queue.get(timeout=0.1)
+        except queue.Empty:
+            pass
+        else:
+            if stdout_line is None:
+                assert False, "STDOUT queue has been closed with no_close_queues"
+            else:
+                print('STDOUT:', stdout_line)
+
+        try:
+            stderr_line = stderr_queue.get(timeout=0.1)
+        except queue.Empty:
+            pass
+        else:
+            if stderr_line is None:
+                assert False, "STDOUT queue has been closed with no_close_queues"
+            else:
+                print('STDERR:', stderr_line)
+        wait_period -= 1
+        if wait_period < 1:
+            break
+
+    while True:
+        done = thread_result.done()
+        print('Thread is done:', done)
+        if done:
+            break
+        sleep(1)
+
+    exit_code, _ = thread_result.result()
+    assert exit_code == 0, 'We did not succeed in running the thread'
+
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
@@ -705,3 +757,4 @@ if __name__ == "__main__":
     test_split_streams()
     test_on_exit()
     test_priority()
+    test_no_close_queues()
