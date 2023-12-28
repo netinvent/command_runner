@@ -1,4 +1,4 @@
-# v1.5.2 - leave the queues alone
+# v1.5.2 - Leave the queues alone
 
 - New `no_close_queues` parameter to leave stdout/stderr queues open for later usage by parent functions
 - Updated ofunctions.threading implementation to v2.1.0
