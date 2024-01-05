@@ -19,10 +19,10 @@ from __future__ import unicode_literals
 
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2023 Orsiris de Jong for NetInvent SASU"
+__copyright__ = "Copyright (C) 2015-2024 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.5.2"
-__build__ = "2023122701"
+__version__ = "1.6.0"
+__build__ = "2024010401"
 __compat__ = "python2.7+"
 
 import io
@@ -462,6 +462,7 @@ def command_runner(
     timeout=3600,  # type: Optional[int]
     shell=False,  # type: bool
     encoding=None,  # type: Optional[Union[str, bool]]
+    stdin=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     stdout=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     stderr=None,  # type: Optional[Union[int, str, Callable, queue.Queue]]
     no_close_queues=False,  # type: Optional[bool]
@@ -910,6 +911,7 @@ def command_runner(
         if sys.version_info >= (3, 6):
             process = subprocess.Popen(
                 command,
+                stdin=stdin,
                 stdout=_stdout,
                 stderr=_stderr,
                 shell=shell,
@@ -924,6 +926,7 @@ def command_runner(
         else:
             process = subprocess.Popen(
                 command,
+                stdin=stdin,
                 stdout=_stdout,
                 stderr=_stderr,
                 shell=shell,

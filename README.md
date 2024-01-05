@@ -196,11 +196,30 @@ logging.getLogger('command_runner').setLevel(logging.CRITICAL)
 Example:
 ```python
 from command_runner import command_runner
+
+
 exit_code, output = command_runner('ping 127.0.0.1', method='poller')
 exit_code, output = command_runner('ping 127.0.0.1', method='monitor')
 ```
 
-#### Stream redirection
+#### stdin stream redirection
+
+`command_runner` allows to redirect some stream directly into the subprocess it spawns.
+
+Example code
+```python
+import sys
+from command_runner import command_runner
+
+
+exit_code, output = command_runner("gzip -d", stdin=sys.stdin.buffer)
+print("Uncompressed data", output)
+```
+The above program, when run with `echo "Hello, World!" | gzip | python myscript.py` will show the uncompressed  string `Hello, World!`
+
+You can use whatever file descriptor you want, basic ones being sys.stdin for text input and sys.stdin.buffer for binary input.
+
+#### stdout / stderr stream redirection
 
 command_runner can redirect stdout and/or stderr streams to different outputs:
  - subprocess pipes
@@ -426,6 +445,7 @@ It also uses the following standard arguments:
  - timeout (int): seconds before a process tree is killed forcefully, defaults to 3600
  - shell (bool): Shall we use the cmd.exe or /usr/bin/env shell for command execution, defaults to False
  - encoding (str/bool): Which text encoding the command produces, defaults to cp437 under Windows and utf-8 under Linux
+ - stdin (sys.stdin/int): Optional stdin file descriptor, sent to the process command_runner spawns
  - stdout (str/queue.Queue/function/False/None): Optional path to filename where to dump stdout, or queue where to write stdout, or callback function which is called when stdout has output
  - stderr (str/queue.Queue/function/False/None): Optional path to filename where to dump stderr, or queue where to write stderr, or callback function which is called when stderr has output
  - no_close_queues (bool): Normally, command_runner sends None to stdout / stderr queues when process is finished. This behavior can be disabled allowing to reuse those queues for other functions wrapping command_runner
