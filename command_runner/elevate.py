@@ -33,6 +33,7 @@ __licence__ = "BSD 3 Clause"
 __version__ = "0.3.3"
 __build__ = "2024091501"
 
+from typing import Tuple
 from logging import getLogger
 import os
 import sys
@@ -140,7 +141,7 @@ def _windows_runner(runner, arguments):
 
 
 def _check_environment():
-    # type: () -> (str, str)
+    # type: () -> Tuple[str, str]
     # Regardless of the runner (CPython, Nuitka or frozen CPython), sys.argv[0] is the relative path to script,
     # sys.argv[1] are the arguments
     # The only exception being CPython on Windows where sys.argv[0] contains absolute path to script
