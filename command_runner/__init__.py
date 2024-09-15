@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2024 Orsiris de Jong for NetInvent SASU"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.6.0"
-__build__ = "2024010401"
+__version__ = "1.7.0"
+__build__ = "2024091501"
 __compat__ = "python2.7+"
 
 import io
@@ -477,6 +477,7 @@ def command_runner(
     silent=False,  # type: bool
     priority=None,  # type: Union[int, str]
     io_priority=None,  # type: str
+    heartbeat=0,  # type: int
     **kwargs  # type: Any
 ):
     # type: (...) -> Union[Tuple[int, Optional[Union[bytes, str]]], Tuple[int, Optional[Union[bytes, str]], Optional[Union[bytes, str]]]]
@@ -507,6 +508,8 @@ def command_runner(
 
     priority and io_priority can be set to 'low', 'normal' or 'high'
     priority may also be an int from -20 to 20 on Unix
+
+    heartbeat will log a line every heartbeat seconds informing that we're still alive
 
     Returns a tuple (exit_code, output)
     """
@@ -642,6 +645,19 @@ def command_runner(
             if output_stderr:
                 return output_stderr
             return None
+        
+    def _heartbeat_thread(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        heartbeat,  # type: int
+    ):
+        begin_time = datetime.now()
+        while True:
+            elapsed_time = int((datetime.now() - begin_time).total_seconds())
+            if elapsed_time % heartbeat == 1:
+                logger.info("Still running command after %s seconds" % elapsed_time)
+            if process.poll() is not None:
+                break
+            sleep(1)
 
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
@@ -670,7 +686,6 @@ def command_runner(
             Simple subfunction to check whether timeout is reached
             Since we check this alot, we put it into a function
             """
-
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
                 raise TimeoutExpired(
@@ -681,6 +696,14 @@ def command_runner(
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
 
         begin_time = datetime.now()
+        if heartbeat:
+            heartbeat_thread = threading.Thread(
+                target=_heartbeat_thread,
+                args=(process, heartbeat,),
+            )
+            heartbeat_thread.daemon = True
+            heartbeat_thread.start()
+
         if encoding is False:
             output_stdout = output_stderr = b""
         else:
@@ -818,6 +841,14 @@ def command_runner(
         )
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
+        if heartbeat:
+            heartbeat_thread = threading.Thread(
+                target=_heartbeat_thread,
+                args=(process, heartbeat,),
+            )
+            heartbeat_thread.daemon = True
+            heartbeat_thread.start()
+
 
         if encoding is False:
             output_stdout = output_stderr = b""
@@ -946,6 +977,7 @@ def command_runner(
                     logger.warning(
                         "Cannot set process priority {}. Access denied.".format(exc)
                     )
+                    logger.debug("Trace:", exc_info=True)
                 except Exception as exc:
                     logger.warning("Cannot set process priority: {}".format(exc))
                     logger.debug("Trace:", exc_info=True)
@@ -965,6 +997,7 @@ def command_runner(
                             exc
                         )
                     )
+                    logger.debug("Trace:", exc_info=True)
                 except Exception as exc:
                     logger.warning("Cannot set io priority: {}".format(exc))
                     logger.debug("Trace:", exc_info=True)
