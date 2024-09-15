@@ -337,6 +337,9 @@ def to_encoding(
             except (ValueError, TypeError):
                 # What happens when str cannot be concatenated
                 logger.error("Output cannot be captured {}".format(process_output))
+    elif process_output is None:
+        # We deal with strings. Alter output string to avoid NoneType errors
+        process_output = ""
     return process_output
 
 
@@ -1044,8 +1047,8 @@ def command_runner(
                 _stdout.write(output_stderr.encode(encoding, errors=errors))
 
         logger.debug(
-            'Command "{}" returned with exit code "{}". Command output was:'.format(
-                command, exit_code
+            'Command "{}" returned with exit code "{}". Command output was:\n{}'.format(
+                command, exit_code, to_encoding(output_stdout, error_encoding, errors)
             )
         )
     except subprocess.CalledProcessError as exc:
@@ -1093,7 +1096,7 @@ def command_runner(
         exit_code, output_stdout = (-253, message)
     except TimeoutExpired as exc:
         message = 'Timeout {} seconds expired for command "{}" execution. Original output was: {}'.format(
-            timeout, command, exc.output
+            timeout, command, to_encoding(exc.output, error_encoding, errors)[-1000:]
         )
         if not silent:
             logger.error(message)
@@ -1102,7 +1105,7 @@ def command_runner(
         exit_code, output_stdout = (-254, message)
     except StopOnInterrupt as exc:
         message = "Command {} was stopped because stop_on function returned True. Original output was: {}".format(
-            command, to_encoding(exc.output, error_encoding, errors)
+            command, to_encoding(exc.output, error_encoding, errors)[-1000:]
         )
         if not silent:
             logger.info(message)
