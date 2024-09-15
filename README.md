@@ -21,8 +21,9 @@ while solving various problems a developer may face among:
    - System agnostic functionality, the developer shouldn't carry the burden of Windows & Linux differences
    - Optional Windows UAC elevation module compatible with CPython, PyInstaller & Nuitka
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
+   - Optional heartbeat for command execution
 
-It is compatible with Python 2.7+, tested up to Python 3.11 (backports some newer Python 3.5 functionality) and is tested on both Linux and Windows.
+It is compatible with Python 2.7+, tested up to Python 3.12 (backports some newer functionality to Python 3.5) and is tested on both Linux and Windows.
 It is also compatible with PyPy Python implementation.
 ...and yes, keeping Python 2.7 compatibility has proven to be quite challenging.
 
@@ -435,6 +436,16 @@ from command_runner import command_runner
 exit_code, output = command_runner('some_intensive_process', priority='low', io_priority='high')
 ```
 
+### Heartbeat
+When running long commands, one might want to know that the program is still running.  
+The following example will log a message every hour stating that we're still running our command
+
+```python
+from command_runner import command_runner
+
+exit_code, output = command_runner('/some/long/command', timeout=None, heartbeat=3600)
+```
+
 #### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
@@ -460,6 +471,7 @@ It also uses the following standard arguments:
  - silent (bool): Allows to disable command_runner's internal logs, except for logging.DEBUG levels which for obvious reasons should never be silenced
  - priority (str): Allows to set CPU bound process priority (takes 'low', 'normal' or 'high' parameter)
  - io_priority (str): Allows to set IO priority for process (takes 'low', 'normal' or 'high' parameter)
+ - heartbeat (int): Optional seconds on which command runner should log a heartbeat message
  - close_fds (bool): Like Popen, defaults to True on Linux and False on Windows
  - universal_newlines (bool): Like Popen, defaults to False
  - creation_flags (int): Like Popen, defaults to 0
