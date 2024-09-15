@@ -648,7 +648,7 @@ def command_runner(
             if output_stderr:
                 return output_stderr
             return None
-        
+
     def _heartbeat_thread(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         heartbeat,  # type: int
@@ -702,7 +702,10 @@ def command_runner(
         if heartbeat:
             heartbeat_thread = threading.Thread(
                 target=_heartbeat_thread,
-                args=(process, heartbeat,),
+                args=(
+                    process,
+                    heartbeat,
+                ),
             )
             heartbeat_thread.daemon = True
             heartbeat_thread.start()
@@ -847,11 +850,13 @@ def command_runner(
         if heartbeat:
             heartbeat_thread = threading.Thread(
                 target=_heartbeat_thread,
-                args=(process, heartbeat,),
+                args=(
+                    process,
+                    heartbeat,
+                ),
             )
             heartbeat_thread.daemon = True
             heartbeat_thread.start()
-
 
         if encoding is False:
             output_stdout = output_stderr = b""

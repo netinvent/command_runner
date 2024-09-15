@@ -30,15 +30,16 @@ __intname__ = "command_runner.elevate"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2017-2023 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__version__ = "0.3.2"
-__build__ = "2023122801"
+__version__ = "0.3.3"
+__build__ = "2024091501"
 
 from logging import getLogger
 import os
 import sys
 from command_runner import command_runner
 
-if os.name == "nt":
+OS_NAME = os.name
+if OS_NAME == "nt":
     try:
         import win32event  # monitor process
         import win32process  # monitor process
@@ -61,15 +62,14 @@ def is_admin():
 
     :return: Boolean, True if admin privileges present
     """
-    current_os_name = os.name
 
     # Works with XP SP2 +
-    if current_os_name == "nt":
+    if OS_NAME == "nt":
         try:
             return IsUserAnAdmin()
         except Exception:
             raise EnvironmentError("Cannot check admin privileges")
-    elif current_os_name == "posix":
+    elif OS_NAME == "posix":
         # Check for root on Posix
         # os.getuid only exists on postix OSes
         # pylint: disable=E1101 (no-member)
@@ -77,7 +77,7 @@ def is_admin():
     else:
         raise EnvironmentError(
             "OS does not seem to be supported for admin check. OS: {}".format(
-                current_os_name
+                OS_NAME
             )
         )
 
@@ -97,7 +97,7 @@ def get_absolute_path(executable):
         if os.path.isfile(output):
             return output
 
-    if os.name == "nt":
+    if OS_NAME == "nt":
         split_char = ";"
     else:
         split_char = ":"
@@ -205,7 +205,7 @@ def elevate(callable_function, *args, **kwargs):
     else:
         runner, arguments = _check_environment()
         # Windows runner
-        if os.name == "nt":
+        if OS_NAME == "nt":
             # Re-run the script with admin rights
             # Join arguments and double quote each argument in order to prevent space separation
             arguments = " ".join('"' + arg + '"' for arg in arguments)
