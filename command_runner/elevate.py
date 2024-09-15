@@ -77,9 +77,7 @@ def is_admin():
         return os.getuid() == 0
     else:
         raise EnvironmentError(
-            "OS does not seem to be supported for admin check. OS: {}".format(
-                OS_NAME
-            )
+            "OS does not seem to be supported for admin check. OS: {}".format(OS_NAME)
         )
 
 
