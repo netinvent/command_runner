@@ -656,7 +656,7 @@ def command_runner(
         begin_time = datetime.now()
         while True:
             elapsed_time = int((datetime.now() - begin_time).total_seconds())
-            if elapsed_time % heartbeat == 1:
+            if elapsed_time > heartbeat and elapsed_time % heartbeat == 0:
                 logger.info("Still running command after %s seconds" % elapsed_time)
             if process.poll() is not None:
                 break
