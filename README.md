@@ -51,6 +51,8 @@ This specific behavior is achieved via psutil module, which is an optional depen
    
 ### command_runner in a nutshell
 
+### In a nutshell
+
 Install with `pip install command_runner`
 
 The following example will work regardless of the host OS and the Python version.
@@ -62,17 +64,10 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=10)
 ```
 
 
-## Guide to command_runner
-
-### Setup
-
-`pip install command_runner` or download the latest git release
+## Advanced command_runner usage
 
 
-### Advanced command_runner usage
-
-
-#### Special exit codes
+### Special exit codes
 
 In order to keep the promise to always provide an exit_code, spcial exit codes have been added for the case where none is given.
 Those exit codes are:
@@ -86,7 +81,7 @@ Those exit codes are:
 
 This allows you to use the standard exit code logic, without having to deal with various exceptions.
 
-#### Default encoding
+### Default encoding
 
 command_runner has an `encoding` argument which defaults to `utf-8` for Unixes and `cp437` for Windows platforms.
 Using `cp437` ensures that most `cmd.exe` output is encoded properly, including accents and special characters, on most locale systems.
@@ -109,9 +104,9 @@ from command_runner import command_runner
 exit_code, raw_output = command_runner('ping 127.0.0.1', encoding=False)
 ```
 
-#### On the fly (interactive screen) output
+### On the fly (interactive screen) output
 
-**Note: for live output capture and threading, see stream redirection. If you want to run your application while command_runner gives back command output, the best way to go is queues / callbacks.**
+**Note: for live output capture and threading, see stream redirection. If you want to run your application while command_runner gives back command output, the best way to achieve this is using queues / callbacks.**
 
 command_runner can output a command output on the fly to stdout, eg show output on screen during execution.
 This is helpful when the command is long, and we need to know the output while execution is ongoing.
@@ -126,12 +121,12 @@ exit_code, output = command_runner('ping 127.0.0.1', shell=True, live_output=Tru
 
 Note: using live output relies on stdout pipe polling, which has lightly higher cpu usage.
 
-#### Timeouts
+### Timeouts
 
-**command_runner has a `timeout` argument which defaults to 3600 seconds.**
+**command_runner has a `timeout` argument which defaults to 3600 seconds.**  
 This default setting ensures commands will not block the main script execution.
 Feel free to lower / higher that setting with `timeout` argument.
-Note that a command_runner kills the whole process tree that the command may have generated, even under Windows.
+Note that a command_runner will try to kill the whole process tree that the command may have generated.
 
 ```python
 from command_runner import command_runner
@@ -139,14 +134,12 @@ from command_runner import command_runner
 exit_code, output = command_runner('ping 127.0.0.1', timeout=30)
 ```
 
-#### Remarks on processes
+#### Remarks on processes termination
 
-Using `shell=True` will spawn a shell which will spawn the desired child process.
-Be aware that under MS Windows, no direct process tree is available.
+When we instruct command_runner to stop a process (because of one of the requirements met, example timeouts), using `shell=True` will spawn a shell which will spawn the desired child process. Under MS Windows, there is no direct process tree, so we cannot easily kill the whole process tree.
 We fixed this by walking processes during runtime. The drawback is that orphaned processes cannot be identified this way.
 
-
-#### Disabling logs / silencing
+### Disabling logs / silencing
 
 `command_runner` has it's own logging system, which will log all sorts of error logs.
 If you need to disable it's logging, just run with argument silent.
@@ -168,7 +161,7 @@ import command_runner
 logging.getLogger('command_runner').setLevel(logging.CRITICAL)
 ```
 
-#### Capture method
+### Capture method
 
 `command_runner` allows two different process output capture methods:
 
@@ -203,26 +196,9 @@ exit_code, output = command_runner('ping 127.0.0.1', method='poller')
 exit_code, output = command_runner('ping 127.0.0.1', method='monitor')
 ```
 
-#### stdin stream redirection
+#### stdout / stderr stream redirection using poller capture method
 
-`command_runner` allows to redirect some stream directly into the subprocess it spawns.
-
-Example code
-```python
-import sys
-from command_runner import command_runner
-
-
-exit_code, output = command_runner("gzip -d", stdin=sys.stdin.buffer)
-print("Uncompressed data", output)
-```
-The above program, when run with `echo "Hello, World!" | gzip | python myscript.py` will show the uncompressed  string `Hello, World!`
-
-You can use whatever file descriptor you want, basic ones being sys.stdin for text input and sys.stdin.buffer for binary input.
-
-#### stdout / stderr stream redirection
-
-command_runner can redirect stdout and/or stderr streams to different outputs:
+command_runner can redirect the command's stdout and/or stderr streams to different outputs:
  - subprocess pipes
  - /dev/null or NUL
  - files
@@ -232,25 +208,23 @@ command_runner can redirect stdout and/or stderr streams to different outputs:
 Unless an output redirector is given for `stderr` argument, stderr will be redirected to `stdout` stream.
 Note that both queues and callback function redirectors require `poller` method and will fail if method is not set.
 
-Possible output redirection options are:
+Output redirector descrptions:  
 
 - subprocess pipes
 
-By default, stdout writes into a subprocess.PIPE which is read by command_runner and returned as `output` variable.
-You may also pass any other subprocess.PIPE int values to `stdout` or `stderr` arguments.
+  - By default, stdout writes into a subprocess.PIPE which is read by command_runner and returned as `output` variable.
+  - You may also pass any other subprocess.PIPE int values to `stdout` or `stderr` arguments.
 
 - /dev/null or NUL
 
-If `stdout=False` and/or `stderr=False` argument(s) are given, command output will not be saved.
-stdout/stderr streams will be redirected to `/dev/null` or `NUL` depending on platform.
-
-Output will always be `None`. See `split_streams` for more details using multiple outputs.
+  - If `stdout=False` and/or `stderr=False` argument(s) are given, command output will not be saved.
+  - stdout/stderr streams will be redirected to `/dev/null` or `NUL` depending on platform.
+  - Output will always be `None`. See `split_streams` for more details using multiple outputs.
 
 - files
 
-Giving `stdout` and/or `stderr` arguments a string, `command_runner` will consider the string to be a file path where stream output will be written live.
-
-Examples:
+  - Giving `stdout` and/or `stderr` arguments a string, `command_runner` will consider the string to be a file path where stream output will be written live.
+  - Examples:
 ```python
 from command_runner import command_runner
 exit_code, output = command_runner('dir', stdout=r"C:/tmp/command_result", stderr=r"C:/tmp/command_error", shell=True)
@@ -259,20 +233,15 @@ exit_code, output = command_runner('dir', stdout=r"C:/tmp/command_result", stder
 from command_runner import command_runner
 exit_code, output = command_runner('dir', stdout='/tmp/stdout.log', stderr='/tmp/stderr.log', shell=True)
 ```
-
-Opening a file with the wrong encoding (especially opening a CP437 encoded file on Windows with UTF-8 coded might endup with UnicodedecodeError.)
+  - Opening a file with the wrong encoding (especially opening a CP437 encoded file on Windows with UTF-8 coded might endup with UnicodedecodeError.)
 
 - queues
 
-Queue(s) will be filled up by command_runner.
-
-In order to keep your program "live", we'll use the threaded version of command_runner which is basically the same except it returns a future result instead of a tuple.
-
-Note: With all the best will, there's no good way to achieve this under Python 2.7 without using more queues, so the threaded version is only compatible with Python 3.3+.
-
-For Python 2.7, you must create your thread and queue reader yourself (see footnote for a Python 2.7 comaptible example).
-
-Threaded command_runner plus queue example:
+  - Queue(s) will be filled up by command_runner.
+  - In order to keep your program "live", we'll use the threaded version of command_runner which is basically the same except it returns a future result instead of a tuple.
+  - Note: With all the best will, there's no good way to achieve this under Python 2.7 without using more queues, so the threaded version is only compatible with Python 3.3+.
+  - For Python 2.7, you must create your thread and queue reader yourself (see footnote for a Python 2.7 comaptible example).
+  - Threaded command_runner plus queue example:
 
 ```python
 import queue
@@ -298,8 +267,8 @@ while read_queue:
 # Now we may get exit_code and output since result has become available at this point
 exit_code, output = thread_result.result()
 ```
-You might also want to read both stdout and stderr queues. In that case, you can create a read loop just like in the following example.
-Here we're reading both queues in one loop, so we need to observe a couple of conditions before stopping the loop, in order to catch all queue output:
+  - You might also want to read both stdout and stderr queues. In that case, you can create a read loop just like in the following example.
+  - Here we're reading both queues in one loop, so we need to observe a couple of conditions before stopping the loop, in order to catch all queue output:
 ```python
 import queue
 from time import sleep
@@ -341,9 +310,8 @@ assert exit_code == 0, 'We did not succeed in running the thread'
 
 - callback functions
 
-The callback function will get one argument, being a str of current stream readings.
-It will be executed on every line that comes from streams.
-Example:
+  - The callback function will get one argument, being a str of current stream readings.
+  - It will be executed on every line that comes from streams. Example:
 ```python
 from command_runner import command_runner
 
@@ -355,11 +323,37 @@ def callback_function(string):
 exit_code, output = command_runner('ping 127.0.0.1', stdout=callback_function, method='poller')
 ```
 
-#### stop_on
+### stdin stream redirection
+
+`command_runner` allows to redirect some stream directly into the subprocess it spawns.
+
+Example code
+```python
+import sys
+from command_runner import command_runner
+
+
+exit_code, output = command_runner("gzip -d", stdin=sys.stdin.buffer)
+print("Uncompressed data", output)
+```
+The above program, when run with `echo "Hello, World!" | gzip | python myscript.py` will show the uncompressed  string `Hello, World!`
+
+You can use whatever file descriptor you want, basic ones being sys.stdin for text input and sys.stdin.buffer for binary input.
+
+### Checking intervals
+
+By default, command_runner checks timeouts and outputs every 0.05 seconds.
+You can increase/decrease this setting via `check_interval` setting which accepts floats.
+Example: `command_runner(cmd, check_interval=0.2)`
+Note that lowering `check_interval` will increase CPU usage.
+
+### stop_on
 
 In some situations, you want a command to be aborted on some external triggers.
-That's where `stop_on` argument comes in handy.
-Just pass a function to `stop_on`, as soon as function result becomes True, execution will halt with exit code -251.
+That's where `stop_on` argument comes in handy,
+Just pass a function to `stop_on`, which will be executed every on every `check_interval`. As soon as function result becomes True, execution will halt with exit code -251.
+
+As a side note, when using `stop_on=my_func`, if `my_func` is cpu/io intensive, you should set `check_interval` to something reasonable, which generally counts in seconds.
 
 Example:
 ```python
@@ -367,19 +361,12 @@ from command_runner import command_runner
 
 def some_function():
     return True if we_must_stop_execution
-exit_code, output = command_runner('ping 127.0.0.1', stop_on=some_function)
+exit_code, output = command_runner('ping 127.0.0.1', stop_on=some_function, check_interval=2)
 ```
 
-#### Checking intervals
+### Getting current process information
 
-By default, command_runner checks timeouts and outputs every 0.05 seconds.
-You can increase/decrease this setting via `check_interval` setting which accepts floats.
-Example: `command_runner(cmd, check_interval=0.2)`
-Note that lowering `check_interval` will increase CPU usage.
-
-#### Getting current process information
-
-`command_runner` can provide a subprocess.Popen instance of currently run process as external data.
+`command_runner` can provide an instance of subprocess.Popen of currently run command as external data, in order to retrieve process data like pids.  
 In order to do so, just declare a function and give it as `process_callback` argument.
 
 Example:
@@ -392,7 +379,7 @@ def show_process_info(process):
 exit_code, output = command_runner('ping 127.0.0.1', process_callback=show_process_info)
 ```
 
-#### Split stdout and stderr
+### Split stdout and stderr
 
 By default, `command_runner` returns a tuple like `(exit_code, output)` in which output contains both stdout and stderr stream outputs.
 You can alter that behavior by using argument `split_stream=True`.
@@ -408,10 +395,10 @@ print('stdout', stdout)
 print('stderr', stderr)
 ```
 
-#### On-exit Callback
+### On-exit Callback
 
-`command_runner` allows to execute a callback function once it has finished it's execution.
-This might help building threaded programs where a callback is needed to disable GUI elements for example.
+`command_runner` allows to execute a callback function once it has finished it's execution.  
+This might help building threaded programs where a callback is needed to disable GUI elements for example, or make the program aware that execution has finished without the need for polling checks.
 
 Example:
 ```python
@@ -437,7 +424,7 @@ exit_code, output = command_runner('some_intensive_process', priority='low', io_
 ```
 
 ### Heartbeat
-When running long commands, one might want to know that the program is still running.  
+When running long commands, one might want to know that the program is still running.    
 The following example will log a message every hour stating that we're still running our command
 
 ```python
@@ -446,7 +433,7 @@ from command_runner import command_runner
 exit_code, output = command_runner('/some/long/command', timeout=None, heartbeat=3600)
 ```
 
-#### Other arguments
+### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
 
@@ -480,7 +467,52 @@ It also uses the following standard arguments:
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
 
-## UAC Elevation / sudo elevation
+### command_runner Python 2.7 compatible queue reader
+
+The following example is a Python 2.7 compatible threaded implementation that reads stdout / stderr queue in a thread.
+This only exists for compatibility reasons.
+
+```python
+import queue
+import threading
+from command_runner import command_runner
+
+def read_queue(output_queue):
+    """
+    Read the queue as thread
+    Our problem here is that the thread can live forever if we don't check a global value, which is...well ugly
+    """
+    stream_output = ""
+    read_queue = True
+    while read_queue:
+        try:
+            line = output_queue.get(timeout=1)
+        except queue.Empty:
+            pass
+        else:
+            # The queue reading can be stopped once 'None' is received.
+            if line is None:
+                read_queue = False
+            else:
+                stream_output += line
+                # ADD YOUR LIVE CODE HERE
+
+
+# Create a new queue that command_runner will fill up
+output_queue = queue.Queue()
+
+# Create a thread of read_queue() in order to read the queue while command_runner executes the command
+read_thread = threading.Thread(
+    target=read_queue, args=(output_queue)
+)
+read_thread.daemon = True  # thread dies with the program
+read_thread.start()
+
+# Launch command_runner, which will be blocking. Your live code goes directly into the threaded function
+exit_code, output = command_runner('ping 127.0.0.1', stdout=output_queue, method='poller')
+```
+
+# UAC Elevation / sudo elevation
 
 command_runner package allowing privilege elevation.
 Becoming an admin is fairly easy with command_runner.elevate
@@ -528,51 +560,4 @@ This can be achieved in `/etc/sudoers` file.
 Example for Redhat / Rocky Linux, where adding the following line will allow the elevation process to succeed without password:
 ```
 someuser ALL= NOPASSWD:/usr/local/bin/my_compiled_python_binary
-```
-
-## Footnotes
-
-#### command_runner Python 2.7 compatible queue reader
-
-The following example is a Python 2.7 compatible threaded implementation that reads stdout / stderr queue in a thread.
-This only exists for compatibility reasons.
-
-```python
-import queue
-import threading
-from command_runner import command_runner
-
-def read_queue(output_queue):
-    """
-    Read the queue as thread
-    Our problem here is that the thread can live forever if we don't check a global value, which is...well ugly
-    """
-    stream_output = ""
-    read_queue = True
-    while read_queue:
-        try:
-            line = output_queue.get(timeout=1)
-        except queue.Empty:
-            pass
-        else:
-            # The queue reading can be stopped once 'None' is received.
-            if line is None:
-                read_queue = False
-            else:
-                stream_output += line
-                # ADD YOUR LIVE CODE HERE
-
-
-# Create a new queue that command_runner will fill up
-output_queue = queue.Queue()
-
-# Create a thread of read_queue() in order to read the queue while command_runner executes the command
-read_thread = threading.Thread(
-    target=read_queue, args=(output_queue)
-)
-read_thread.daemon = True  # thread dies with the program
-read_thread.start()
-
-# Launch command_runner, which will be blocking. Your live code goes directly into the threaded function
-exit_code, output = command_runner('ping 127.0.0.1', stdout=output_queue, method='poller')
 ```
