@@ -152,7 +152,7 @@ def _check_environment():
     # --------------------------------------------------------------------------------------------------------------
     # | OS  | Variable       | CPython                       | Nuitka               | PyInstaller                  |
     # |------------------------------------------------------------------------------------------------------------|
-    # | Lin | argv           | ['./script.py', '-h']         | ['./test', '-h']     | ['./test.py', -h']           |
+    # | Lin | argv           | ['./test.py', '-h']         | ['./test', '-h']     | ['./test.py', -h']           |
     # | Lin | sys.executable | /usr/bin/python3.4            | /usr/bin/python3.4   | /absolute/path/to/test       |
     # | Win | argv           | ['C:\\Python\\test.py', '-h'] | ['test', '-h']       | ['test', '-h']               |
     # | Win | sys.executable | C:\Python\python.exe          | C:\Python\Python.exe | C:\absolute\path\to\test.exe |
