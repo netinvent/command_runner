@@ -121,6 +121,7 @@ def _windows_runner(runner, arguments):
     # from win32com.shell.shell import ShellExecuteEx
     # from win32com.shell import shellcon
     # pylint: disable=C0103 (invalid-name)
+    # pylint: disable=E0606 (possibly-used-before-assignment)
     childProcess = ShellExecuteEx(
         nShow=0,
         fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
@@ -132,8 +133,10 @@ def _windows_runner(runner, arguments):
     # pylint: disable=C0103 (invalid-name)
     procHandle = childProcess["hProcess"]
     # pylint: disable=I1101 (c-extension-no-member)
+    # pylint: disable=E0606 (possibly-used-before-assignment)
     win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
     # pylint: disable=I1101 (c-extension-no-member)
+    # pylint: disable=E0606 (possibly-used-before-assignment)
     exit_code = win32process.GetExitCodeProcess(procHandle)
     return exit_code
 
