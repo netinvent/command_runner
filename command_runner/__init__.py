@@ -320,7 +320,7 @@ def to_encoding(
     # type: (...) -> str
     """
     Convert bytes output to string and handles conversion errors
-    Varation of ofunctions.string_handling.safe_string_convert
+    Variation of ofunctions.string_handling.safe_string_convert
     """
 
     if not encoding:
@@ -625,7 +625,7 @@ def command_runner(
 
         # We also need to check that stream has readline, in case we're writing to files instead of PIPE
 
-        # Another magnificient python 2.7 fix
+        # Another magnificent python 2.7 fix
         # So we need to convert sentinel_char which would be unicode because of unicode_litterals
         # to str which is the output format from stream.readline()
 
@@ -820,7 +820,7 @@ def command_runner(
                 break
             if process.poll() is not None:
                 break
-            # We definitly need some sleep time here or else we will overload CPU
+            # We definitely need some sleep time here or else we will overload CPU
             sleep(check_interval)
 
     def _monitor_process(

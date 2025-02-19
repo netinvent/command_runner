@@ -265,7 +265,7 @@ def test_unix_only_split_command():
     if os.name == 'posix':
         for method in methods:
             exit_code, _ = command_runner(' '.join(PING_CMD), method=method)
-            assert exit_code == 0, 'Non splitted command should not trigger an error with method {}'.format(method)
+            assert exit_code == 0, 'Non split command should not trigger an error with method {}'.format(method)
 
 
 def test_create_no_window():
