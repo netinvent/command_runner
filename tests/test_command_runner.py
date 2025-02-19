@@ -111,6 +111,13 @@ def is_pypy():
     return True if platform.python_implementation().lower() == "pypy" else False
 
 
+def is_macos():
+    """
+    Checks if under Mac OS
+    """
+    return platform.system().lower() == "darwin"
+
+
 def test_standard_ping_with_encoding():
     """
     Test command_runner with a standard ping and encoding parameter
@@ -243,9 +250,13 @@ def test_valid_exit_codes():
 
     # WIP We could improve tests here by capturing logs
     """
+    valid_exit_codes = [0, 1, 2]
+    if is_macos():
+        valid_exit_codes.append(68)  # ping non-existent exits with such on Mac
     for method in methods:
-        exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=[0, 1, 2], method=method)
-        assert exit_code in [0, 1, 2], 'Exit code not in valid list with method {}'.format(method)
+
+        exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=valid_exit_codes, method=method)
+        assert exit_code in valid_exit_codes, 'Exit code not in valid list with method {}'.format(method)
 
         exit_code, _ = command_runner('ping nonexistent_host', shell=True, valid_exit_codes=True, method=method)
         assert exit_code != 0, 'Exit code should not be equal to 0'
