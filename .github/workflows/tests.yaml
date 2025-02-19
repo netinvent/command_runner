@@ -5,7 +5,7 @@ on: [push, pull_request]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}
-  cancel-in-progress: false  # TEMP: change later to True
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
       matrix:
         # Remember kids, the default shell on Windows is Powershell
         os: [linux-latest, macos-latest, windows-latest]
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "pypy-3.6", "pypy-3.7", "pypy-3.8", "pypy-3.10"]
+        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "pypy-3.8", "pypy-3.10"]
 
     steps:
     - uses: actions/checkout@v3
