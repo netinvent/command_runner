@@ -352,7 +352,7 @@ def kill_childs_mod(
     """
     Inline version of ofunctions.kill_childs that has no hard dependency on psutil
 
-    Kills all childs of pid (current pid can be obtained with os.getpid())
+    Kills all children of pid (current pid can be obtained with os.getpid())
     If no pid given current pid is taken
     Good idea when using multiprocessing, is to call with atexit.register(ofunctions.kill_childs, os.getpid(),)
 
@@ -687,7 +687,7 @@ def command_runner(
             # type: (...) -> None
             """
             Simple subfunction to check whether timeout is reached
-            Since we check this alot, we put it into a function
+            Since we check this a lot, we put it into a function
             """
             if timeout and (datetime.now() - begin_time).total_seconds() > timeout:
                 kill_childs_mod(process.pid, itself=True, soft_kill=False)
