@@ -265,7 +265,7 @@ def test_unix_only_split_command():
     if os.name == 'posix':
         for method in methods:
             exit_code, _ = command_runner(' '.join(PING_CMD), method=method)
-            assert exit_code == 0, 'Non splitted command should not trigger an error with method {}'.format(method)
+            assert exit_code == 0, 'Non split command should not trigger an error with method {}'.format(method)
 
 
 def test_create_no_window():
@@ -296,7 +296,7 @@ def test_read_file():
         max_rounds = 100 if is_pypy() else 1000
         print("\nSetting up test_read_file for {} rounds".format(max_rounds))
         for round in range(0, max_rounds):
-            print('Comparaison round {} with method {}'.format(round, method))
+            print('Comparison round {} with method {}'.format(round, method))
             exit_code, output = command_runner(PRINT_FILE_CMD, shell=True, method=method)
             if os.name == 'nt':
                 output = output.replace('\r\n', '\n')

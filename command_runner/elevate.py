@@ -146,7 +146,7 @@ def _check_environment():
     # Regardless of the runner (CPython, Nuitka or frozen CPython), sys.argv[0] is the relative path to script,
     # sys.argv[1] are the arguments
     # The only exception being CPython on Windows where sys.argv[0] contains absolute path to script
-    # Regarless of OS, sys.executable will contain full path to python binary for CPython and Nuitka,
+    # Regardless of OS, sys.executable will contain full path to python binary for CPython and Nuitka,
     # and full path to frozen executable on frozen CPython
 
     # Recapitulative table create with
@@ -231,7 +231,7 @@ def elevate(callable_function, *args, **kwargs):
                 callable_function(*args, **kwargs)
             else:
                 command = ["sudo", runner] + arguments
-                # Optionnaly might also pass a stdout PIPE to command_runner so we get live output
+                # Optionally might also pass a stdout PIPE to command_runner so we get live output
                 exit_code, output = command_runner(command, shell=False, timeout=None)
 
                 logger.info("Child output: {}".format(output))

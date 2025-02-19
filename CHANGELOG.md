@@ -30,7 +30,7 @@
 
 ## Features
 
-- command_runner now has a `command_runner_threaded()` function which allows to run in background, but stil provide live stdout/stderr stream output via queues/callbacks
+- command_runner now has a `command_runner_threaded()` function which allows to run in background, but still provide live stdout/stderr stream output via queues/callbacks
 - Refactor poller mode to allow multiple stdout / stderr stream redirectors
     - Passing a queue.Queue() instance to stdout/stderr arguments will fill queue with live stream output
 	- Passing a function to stdout/stderr arguments will callback said function with live stream output
@@ -115,7 +115,7 @@
     - All tests are done for both capture methods
     - Timeout tests are more accurate
     - Added missing encoding tests
-    - 2500 rounds of file reading and comparaison are added to detect rare queue read misses
+    - 2500 rounds of file reading and comparison are added to detect rare queue read misses
 
 # v0.7.0 (yanked - do not use; see v1.2.0 critical fixes) - The windows GUI
 

@@ -43,7 +43,7 @@ It works as wrapper for subprocess.popen and subprocess.communicate that solves:
    - Can show command output on the fly without waiting the end of execution (with `live_output=True` argument)
    - Can give command output on the fly to application by using queues or callback functions
    - Catch all possible exceptions and log them properly with encoding fixes
-   - Be compatible, and always return the same result regarless of platform
+   - Be compatible, and always return the same result regardless of platform
 
 command_runner also promises to properly kill commands when timeouts are reached, including spawned subprocesses of such commands.
 This specific behavior is achieved via psutil module, which is an optional dependency.
@@ -69,7 +69,7 @@ exit_code, output = command_runner('ping 127.0.0.1', timeout=10)
 
 ### Special exit codes
 
-In order to keep the promise to always provide an exit_code, spcial exit codes have been added for the case where none is given.
+In order to keep the promise to always provide an exit_code, special exit codes have been added for the case where none is given.
 Those exit codes are:
 
 - -250 : command_runner called with incompatible arguments
@@ -208,7 +208,7 @@ command_runner can redirect the command's stdout and/or stderr streams to differ
 Unless an output redirector is given for `stderr` argument, stderr will be redirected to `stdout` stream.
 Note that both queues and callback function redirectors require `poller` method and will fail if method is not set.
 
-Output redirector descrptions:  
+Output redirector descriptions:  
 
 - subprocess pipes
 
@@ -240,7 +240,7 @@ exit_code, output = command_runner('dir', stdout='/tmp/stdout.log', stderr='/tmp
   - Queue(s) will be filled up by command_runner.
   - In order to keep your program "live", we'll use the threaded version of command_runner which is basically the same except it returns a future result instead of a tuple.
   - Note: With all the best will, there's no good way to achieve this under Python 2.7 without using more queues, so the threaded version is only compatible with Python 3.3+.
-  - For Python 2.7, you must create your thread and queue reader yourself (see footnote for a Python 2.7 comaptible example).
+  - For Python 2.7, you must create your thread and queue reader yourself (see footnote for a Python 2.7 compatible example).
   - Threaded command_runner plus queue example:
 
 ```python
