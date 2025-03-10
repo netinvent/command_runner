@@ -122,7 +122,11 @@ except AttributeError:
             self.timeout = timeout
             self.output = output
             self.stderr = stderr
-            super().__init__(*args, **kwargs)
+            try:
+                super().__init__(*args, **kwargs)
+            except TypeError:
+                # python 2.7 needs super(Baseclass, self)
+                super(BaseException, self).__init__(*args, **kwargs)
 
         def __str__(self):
             return "Command '%s' timed out after %s seconds" % (self.cmd, self.timeout)
@@ -145,7 +149,11 @@ class InterruptGetOutput(BaseException):
 
     def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError:
+            # python 2.7 needs super(Baseclass, self)
+            super(BaseException, self).__init__(*args, **kwargs)
 
     @property
     def output(self):
@@ -159,7 +167,11 @@ class KbdInterruptGetOutput(InterruptGetOutput):
 
     def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__(output, *args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError:
+            # python 2.7 needs super(Baseclass, self)
+            super(InterruptGetOutput, self).__init__(*args, **kwargs)
 
     @property
     def output(self):
@@ -173,7 +185,11 @@ class StopOnInterrupt(InterruptGetOutput):
 
     def __init__(self, output, *args, **kwargs):
         self._output = output
-        super().__init__(output, *args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError:
+            # python 2.7 needs super(Baseclass, self)
+            super(InterruptGetOutput, self).__init__(*args, **kwargs)
 
     @property
     def output(self):
