@@ -28,7 +28,7 @@ Versioning semantics:
 
 __intname__ = "command_runner.elevate"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2017-2023 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2017-2025 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
 __version__ = "0.3.3"
 __build__ = "2024091501"

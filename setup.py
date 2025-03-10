@@ -6,7 +6,7 @@
 
 __intname__ = "command_runner.setup"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2021-2022 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2021-2025 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
 __build__ = "2022092801"
 
