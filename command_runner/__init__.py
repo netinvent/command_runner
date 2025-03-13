@@ -42,6 +42,7 @@ os_name = os.name
 # Don't bother with an ImportError since we need command_runner to work without dependencies
 try:
     import psutil
+
     # Also make sure we directly import priority classes so we can reuse them
     if os_name == "nt":
         from psutil import (
@@ -78,7 +79,7 @@ except (ImportError, AttributeError):
         IOPRIO_CLASS_IDLE = 3
         IOPRIO_CLASS_BE = 2
         IOPRIO_CLASS_RT = 1
-    
+
 
 # Python 2.7 does not have priorities defined in subprocess module, but psutil has
 # Since Windows and Linux use different possible values, let's simplify things by
@@ -308,6 +309,17 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
+def _check_priority_value(priority):
+    """
+    Check if priority int is valid
+    """
+    if isinstance(priority, int):
+        if os_name == "nt":
+            raise ValueError("Priority int not valid on Windows: {}".format(priority))
+        elif -20 <= priority <= 20:
+            raise ValueError("Priority not valid on Unix: {}".format(priority))
+
+
 def _set_priority(
     pid,  # type: int
     priority,  # type: Union[int, str]
@@ -320,8 +332,7 @@ def _set_priority(
     priority = priority.lower()
 
     if priority_type == "process":
-        if isinstance(priority, int) and os_name != "nt" and -20 <= priority <= 20:
-            raise ValueError("Bogus process priority int given: {}".format(priority))
+        _check_priority_value(priority)
         if priority not in ["low", "normal", "high"]:
             raise ValueError(
                 "Bogus {} priority given: {}".format(priority_type, priority)
@@ -1000,10 +1011,8 @@ def command_runner(
 
         process_prio = 0
         if priority:
-            if isinstance(priority, int) and os_name != "nt" and -20 <= priority <= 20:
-                raise ValueError("Bogus process priority int given: {}".format(priority))
-            else:
-                process_prio = PRIORITIES["process"][priority.lower()]
+            _check_priority_value(priority)
+            process_prio = PRIORITIES["process"][priority.lower()]
             if os_name == "nt" and sys.version_info >= (3, 7):
                 kwargs["creationflags"] = kwargs.pop("creationflags", 0) | process_prio
             else:
