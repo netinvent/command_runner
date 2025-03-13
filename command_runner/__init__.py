@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.7.2"
-__build__ = "2025031001"
+__version__ = "1.8.0-dev"
+__build__ = "2025031301"
 __compat__ = "python2.7+"
 
 import io
@@ -38,32 +38,83 @@ from time import sleep
 # Avoid checking os type numerous times
 os_name = os.name
 
+
+# Don't bother with an ImportError since we need command_runner to work without dependencies
 try:
     import psutil
-except ImportError:
-    # Don't bother with an error since we need command_runner to work without dependencies
-    pass
-try:
     # Also make sure we directly import priority classes so we can reuse them
     if os_name == "nt":
         from psutil import (
-            ABOVE_NORMAL_PRIORITY_CLASS,
-            BELOW_NORMAL_PRIORITY_CLASS,
+            # ABOVE_NORMAL_PRIORITY_CLASS,
+            # BELOW_NORMAL_PRIORITY_CLASS,
             HIGH_PRIORITY_CLASS,
             IDLE_PRIORITY_CLASS,
             NORMAL_PRIORITY_CLASS,
             REALTIME_PRIORITY_CLASS,
         )
-        from psutil import IOPRIO_HIGH, IOPRIO_NORMAL, IOPRIO_LOW, IOPRIO_VERYLOW
+        from psutil import (
+            IOPRIO_HIGH,
+            IOPRIO_NORMAL,
+            IOPRIO_LOW,
+        )
     else:
         from psutil import (
             IOPRIO_CLASS_BE,
             IOPRIO_CLASS_IDLE,
-            IOPRIO_CLASS_NONE,
+            # IOPRIO_CLASS_NONE,
             IOPRIO_CLASS_RT,
         )
 except (ImportError, AttributeError):
-    pass
+    if os_name == "nt":
+        BELOW_NORMAL_PRIORITY_CLASS = 16384
+        HIGH_PRIORITY_CLASS = 128
+        NORMAL_PRIORITY_CLASS = 32
+        REALTIME_PRIORITY_CLASS = 256
+        IDLE_PRIORITY_CLASS = 64
+        IOPRIO_HIGH = 3
+        IOPRIO_NORMAL = 2
+        IOPRIO_LOW = 1
+    else:
+        IOPRIO_CLASS_IDLE = 3
+        IOPRIO_CLASS_BE = 2
+        IOPRIO_CLASS_RT = 1
+    
+
+# Python 2.7 does not have priorities defined in subprocess module, but psutil has
+# Since Windows and Linux use different possible values, let's simplify things by
+# allowing 4 process priorities: low, normal, high, rt
+# and 3 process io priorities: low, normal, high
+# For IO, rt == high
+if os_name == "nt":
+    PRIORITIES = {
+        "process": {
+            "low": IDLE_PRIORITY_CLASS,
+            "normal": NORMAL_PRIORITY_CLASS,
+            "high": HIGH_PRIORITY_CLASS,
+            "rt": REALTIME_PRIORITY_CLASS,
+        },
+        "io": {
+            "low": IOPRIO_LOW,
+            "normal": IOPRIO_NORMAL,
+            "high": IOPRIO_HIGH,
+        },
+    }
+else:
+    PRIORITIES = {
+        "process": {
+            "low": 15,
+            "normal": 0,
+            "high": -15,
+            "rt": -20,
+        },
+        "io": {
+            "low": IOPRIO_CLASS_IDLE,
+            "normal": IOPRIO_CLASS_BE,
+            "high": IOPRIO_CLASS_RT,
+        },
+    }
+
+
 try:
     import signal
 except ImportError:
@@ -263,8 +314,8 @@ def _set_priority(
     priority_type,  # type: str
 ):
     """
-    Set process and / or io priorities
-    Since Windows and Linux use different possible values, let's simplify things by allowing 3 prioriy types
+    Set process and / or io prioritie
+    let's simplify things by allowing 3 priority types
     """
     priority = priority.lower()
 
@@ -279,34 +330,15 @@ def _set_priority(
     if priority_type == "io" and priority not in ["low", "normal", "high"]:
         raise ValueError("Bogus {} priority given: {}".format(priority_type, priority))
 
-    if os_name == "nt":
-        priorities = {
-            "process": {
-                "low": BELOW_NORMAL_PRIORITY_CLASS,
-                "normal": NORMAL_PRIORITY_CLASS,
-                "high": HIGH_PRIORITY_CLASS,
-            },
-            "io": {"low": IOPRIO_LOW, "normal": IOPRIO_NORMAL, "high": IOPRIO_HIGH},
-        }
-    else:
-        priorities = {
-            "process": {"low": 15, "normal": 0, "high": -15},
-            "io": {
-                "low": IOPRIO_CLASS_IDLE,
-                "normal": IOPRIO_CLASS_BE,
-                "high": IOPRIO_CLASS_RT,
-            },
-        }
-
     if priority_type == "process":
         # Allow direct priority nice settings under linux
         if isinstance(priority, int):
             _priority = priority
         else:
-            _priority = priorities[priority_type][priority]
+            _priority = PRIORITIES[priority_type][priority]
         psutil.Process(pid).nice(_priority)
     elif priority_type == "io":
-        psutil.Process(pid).ionice(priorities[priority_type][priority])
+        psutil.Process(pid).ionice(PRIORITIES[priority_type][priority])
     else:
         raise ValueError("Bogus priority type given.")
 
@@ -961,9 +993,22 @@ def command_runner(
 
         # Python >= 3.3 has SubProcessError(TimeoutExpired) class
         # Python >= 3.6 has encoding & error arguments
+        # Python >= 3.7 has creationflags argument
         # universal_newlines=True makes netstat command fail under windows
         # timeout does not work under Python 2.7 with subprocess32 < 3.5
         # decoder may be cp437 or unicode_escape for dos commands or utf-8 for powershell
+
+        process_prio = 0
+        if priority:
+            if isinstance(priority, int) and os_name != "nt" and -20 <= priority <= 20:
+                raise ValueError("Bogus process priority int given: {}".format(priority))
+            else:
+                process_prio = PRIORITIES["process"][priority.lower()]
+            if os_name == "nt" and sys.version_info >= (3, 7):
+                kwargs["creationflags"] = kwargs.pop("creationflags", 0) | process_prio
+            else:
+                kwargs["preexec_fn"] = lambda: os.nice(process_prio)
+
         # Disabling pylint error for the same reason as above
         # pylint: disable=E1123
         if sys.version_info >= (3, 6):
@@ -995,8 +1040,8 @@ def command_runner(
                 **kwargs
             )
 
-        # Set process priority if given
-        if priority:
+        # Set process priority if not set earlier by creationflags or preexec_fn
+        if priority and sys.version_info < (3, 7) and os_name == "nt":
             try:
                 try:
                     set_priority(process.pid, priority)
@@ -1236,3 +1281,6 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
+
+
+command_runner("ping 127.0.0.1 -n 100", live_output=True, priority="low")
