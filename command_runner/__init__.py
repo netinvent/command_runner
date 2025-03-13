@@ -33,6 +33,7 @@ import sys
 from datetime import datetime
 from logging import getLogger
 from time import sleep
+import threading
 
 
 # Avoid checking os type numerous times
@@ -74,7 +75,6 @@ try:
     import queue
 except ImportError:
     import Queue as queue
-import threading
 
 # Python 2.7 compat fixes (missing typing)
 try:
