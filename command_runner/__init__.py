@@ -1013,11 +1013,11 @@ def command_runner(
         if priority:
             _check_priority_value(priority)
             process_prio = PRIORITIES["process"][priority.lower()]
+            # Don't bother to make pylint go crazy on Windows missing os.nice()
+            # pylint: disable=E1101
             if os_name == "nt" and sys.version_info >= (3, 7):
                 kwargs["creationflags"] = kwargs.pop("creationflags", 0) | process_prio
             else:
-                # Don't bother to make pylint go crazy on Windows
-                # pylint: disable=E1101
                 kwargs["preexec_fn"] = lambda: os.nice(process_prio)
 
         # Disabling pylint error for the same reason as above
