@@ -78,7 +78,7 @@ import threading
 
 # Python 2.7 compat fixes (missing typing)
 try:
-    from typing import Union, Optional, List, Tuple, NoReturn, Any, Callable
+    from typing import Union, Optional, List, Tuple, Any, Callable
 except ImportError:
     pass
 
