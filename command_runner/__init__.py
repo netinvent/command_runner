@@ -1292,6 +1292,3 @@ def deferred_command(command, defer_time=300):
         stderr=None,
         close_fds=True,
     )
-
-
-command_runner("ping 127.0.0.1 -n 100", live_output=True, priority="low")
