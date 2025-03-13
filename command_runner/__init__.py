@@ -35,6 +35,9 @@ from logging import getLogger
 from time import sleep
 
 
+# Avoid checking os type numerous times
+os_name = os.name
+
 try:
     import psutil
 except ImportError:
@@ -42,7 +45,7 @@ except ImportError:
     pass
 try:
     # Also make sure we directly import priority classes so we can reuse them
-    if os.name == "nt":
+    if os_name == "nt":
         from psutil import (
             ABOVE_NORMAL_PRIORITY_CLASS,
             BELOW_NORMAL_PRIORITY_CLASS,
@@ -266,7 +269,7 @@ def _set_priority(
     priority = priority.lower()
 
     if priority_type == "process":
-        if isinstance(priority, int) and os.name != "nt" and -20 <= priority <= 20:
+        if isinstance(priority, int) and os_name != "nt" and -20 <= priority <= 20:
             raise ValueError("Bogus process priority int given: {}".format(priority))
         if priority not in ["low", "normal", "high"]:
             raise ValueError(
@@ -276,7 +279,7 @@ def _set_priority(
     if priority_type == "io" and priority not in ["low", "normal", "high"]:
         raise ValueError("Bogus {} priority given: {}".format(priority_type, priority))
 
-    if os.name == "nt":
+    if os_name == "nt":
         priorities = {
             "process": {
                 "low": BELOW_NORMAL_PRIORITY_CLASS,
@@ -452,7 +455,7 @@ def kill_childs_mod(
                     pid, 15
                 )  # 15 being signal.SIGTERM or SIGKILL depending on the platform
             except OSError as exc:
-                if os.name == "nt":
+                if os_name == "nt":
                     # We'll do an ugly hack since os.kill() has some pretty big caveats on Windows
                     # especially for Python 2.7 where we can get Access Denied
                     os.system("taskkill /F /pid {}".format(pid))
@@ -536,13 +539,13 @@ def command_runner(
     # Choose default encoding when none set
     # cp437 encoding assures we catch most special characters from cmd.exe
     # Unless encoding=False in which case nothing gets encoded except Exceptions and logger strings for Python 2
-    error_encoding = "cp437" if os.name == "nt" else "utf-8"
+    error_encoding = "cp437" if os_name == "nt" else "utf-8"
     if encoding is None:
         encoding = error_encoding
 
     # Fix when unix command was given as single string
     # This is more secure than setting shell=True
-    if os.name == "posix":
+    if os_name == "posix":
         if not shell and isinstance(command, str):
             command = shlex.split(command)
         elif shell and isinstance(command, list):
@@ -559,7 +562,7 @@ def command_runner(
         windows_no_window
         and sys.version_info[0] >= 3
         and sys.version_info[1] >= 7
-        and os.name == "nt"
+        and os_name == "nt"
     ):
         # Disable the following pylint error since the code also runs on nt platform, but
         # triggers an error on Unix
@@ -1218,7 +1221,7 @@ def deferred_command(command, defer_time=300):
     seconds after it finished
     """
     # Use ping as a standard timer in shell since it's present on virtually *any* system
-    if os.name == "nt":
+    if os_name == "nt":
         deferrer = "ping 127.0.0.1 -n {} > NUL & ".format(defer_time)
     else:
         deferrer = "sleep {} && ".format(defer_time)
