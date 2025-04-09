@@ -22,7 +22,7 @@ __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
 __version__ = "1.7.3-dev"
-__build__ = "2025031401"
+__build__ = "2025040901"
 __compat__ = "python2.7+"
 
 import io
@@ -1032,8 +1032,11 @@ def command_runner(
             # pylint: disable=E1101
             if os_name == "nt" and sys.version_info >= (3, 7):
                 creationflags |= process_prio
-            else:
-                kwargs["preexec_fn"] = lambda: os.nice(process_prio)
+            
+            # Actually we don't want preexec_fn since it's not thread safe, neither supported
+            # in subinterpreters. We'll use set_priority() once the process is spawned
+            # else:
+            #     kwargs["preexec_fn"] = lambda: os.nice(process_prio)
 
         # Disabling pylint error for the same reason as above
         # pylint: disable=E1123
@@ -1066,8 +1069,8 @@ def command_runner(
                 **kwargs
             )
 
-        # Set process priority if not set earlier by creationflags or preexec_fn
-        if priority and sys.version_info < (3, 7) and os_name == "nt":
+        # Set process priority if not set earlier by creationflags
+        if priority and (os_name != "nt" or (sys.version_info < (3, 7) and os_name == "nt")):
             try:
                 try:
                     set_priority(process.pid, priority)
