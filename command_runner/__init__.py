@@ -312,31 +312,30 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
-def _check_priority_value(priority):
+def _validate_process_priority(priority):
     """
     Check if priority int is valid
     """
-    valid_priorities = list(PRIORITIES["process"].keys())
-    if isinstance(priority, str):
-        if priority not in valid_priorities:
-            raise ValueError(
-                "Priority not valid: {}. Please use on of {}".format(
-                    priority, ", ".join(valid_priorities)
-                )
+
+    # type: Union[int, bool] -> int
+    def _raise_prio_error(priority, reason):
+        raise ValueError(
+            "Priority not valid ({}): {}. Please use one of {}".format(
+                reason, priority, ", ".join(list(PRIORITIES["process"].keys()))
             )
-    elif isinstance(priority, int):
+        )
+
+    if isinstance(priority, int):
         if os_name == "nt":
-            raise ValueError(
-                "Priority int not valid on Windows: {}. Please use one of {}".format(
-                    priority, ", ".join(valid_priorities)
-                )
-            )
+            _raise_prio_error(priority, "windows does not accept ints as priority")
         if -20 <= priority <= 20:
-            raise ValueError(
-                "Priority int not valid: {}. Please use one between -20 and 19".format(
-                    priority
-                )
-            )
+            _raise_prio_error(priority, "priority out of range")
+    elif isinstance(priority, str):
+        try:
+            priority = PRIORITIES["process"][priority.lower()]
+        except KeyError:
+            _raise_prio_error(priority, "priority does not exist")
+    return priority
 
 
 def _set_priority(
@@ -350,12 +349,7 @@ def _set_priority(
     priority = priority.lower()
 
     if priority_type == "process":
-        _check_priority_value(priority)
-        # Allow direct priority nice settings under linux
-        if isinstance(priority, int):
-            _priority = priority
-        else:
-            _priority = PRIORITIES[priority_type][priority]
+        _priority = _validate_process_priority(priority)
         psutil.Process(pid).nice(_priority)
     elif priority_type == "io":
         valid_io_priorities = list(PRIORITIES["io"].keys())
@@ -1026,8 +1020,7 @@ def command_runner(
         # decoder may be cp437 or unicode_escape for dos commands or utf-8 for powershell
 
         if priority:
-            _check_priority_value(priority)
-            process_prio = PRIORITIES["process"][priority.lower()]
+            process_prio = _validate_process_priority(priority)
             # Don't bother to make pylint go crazy on Windows missing os.nice()
             # pylint: disable=E1101
             if os_name == "nt" and sys.version_info >= (3, 7):
