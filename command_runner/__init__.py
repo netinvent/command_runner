@@ -1032,7 +1032,7 @@ def command_runner(
             # pylint: disable=E1101
             if os_name == "nt" and sys.version_info >= (3, 7):
                 creationflags |= process_prio
-            
+
             # Actually we don't want preexec_fn since it's not thread safe, neither supported
             # in subinterpreters. We'll use set_priority() once the process is spawned
             # else:
@@ -1070,7 +1070,9 @@ def command_runner(
             )
 
         # Set process priority if not set earlier by creationflags
-        if priority and (os_name != "nt" or (sys.version_info < (3, 7) and os_name == "nt")):
+        if priority and (
+            os_name != "nt" or (sys.version_info < (3, 7) and os_name == "nt")
+        ):
             try:
                 try:
                     set_priority(process.pid, priority)
