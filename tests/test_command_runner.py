@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2025 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2023122801'
+__build__ = '2025040901'
 
 
 import sys
@@ -679,17 +679,43 @@ def test_on_exit():
     assert ON_EXIT_CALLED is True, 'On exit was never called'
 
 
-def test_priority():
-    def check_nice(process):
+def test_low_priority():
+    def check_low_priority(process):
         niceness = os.nice(process.pid)
+        io_niceness = psutil.Process(process.pid).ionice()
         if os.name == 'nt':
             assert niceness == 16384, 'Process niceness not properly set: {}'.format(niceness)
+            assert io_niceness == 1, 'Process io niceness not set properly: {}'.format(io_niceness)
         else:
             assert niceness == 15, 'Process niceness not properly set: {}'.format(niceness)
+            assert io_niceness == 3, 'Process io niceness not set properly: {}'.format(io_niceness)
         print('Nice !')
 
     def command_runner_thread():
-        return  command_runner_threaded(PING_CMD, priority='low', io_priority='low', process_callback=check_nice)
+        return  command_runner_threaded(PING_CMD, priority='low', io_priority='low', process_callback=check_low_priority)
+
+
+    thread = threading.Thread(
+    target=command_runner_thread, args=()
+    )
+    thread.daemon = True  # thread dies with the program
+    thread.start()
+
+
+def test_high_priority():
+    def check_high_priority(process):
+        niceness = os.nice(process.pid)
+        io_niceness = psutil.Process(process.pid).ionice()
+        if os.name == 'nt':
+            assert niceness == 128, 'Process niceness not properly set: {}'.format(niceness)
+            assert io_niceness == 3, 'Process io niceness not set properly: {}'.format(io_niceness)
+        else:
+            assert niceness == -15, 'Process niceness not properly set: {}'.format(niceness)
+            assert io_niceness == 1, 'Process io niceness not set properly: {}'.format(io_niceness)
+        print('Nice !')
+
+    def command_runner_thread():
+        return  command_runner_threaded(PING_CMD, priority='low', io_priority='low', process_callback=check_high_priority)
 
 
     thread = threading.Thread(
