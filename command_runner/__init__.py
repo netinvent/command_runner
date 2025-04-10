@@ -734,6 +734,24 @@ def command_runner(
                 break
             sleep(1)
 
+    def heartbeat_thread(
+        process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
+        heartbeat,  # type: int
+    ):
+        """
+        Just a shorthand to run the heartbeat thread
+        """
+        if heartbeat:
+            heartbeat_thread = threading.Thread(
+                target=_heartbeat_thread,
+                args=(
+                    process,
+                    heartbeat,
+                ),
+            )
+            heartbeat_thread.daemon = True
+            heartbeat_thread.start()
+
     def _poll_process(
         process,  # type: Union[subprocess.Popen[str], subprocess.Popen]
         timeout,  # type: int
@@ -771,16 +789,8 @@ def command_runner(
                 raise StopOnInterrupt(_get_error_output(output_stdout, output_stderr))
 
         begin_time = datetime.now()
-        if heartbeat:
-            heartbeat_thread = threading.Thread(
-                target=_heartbeat_thread,
-                args=(
-                    process,
-                    heartbeat,
-                ),
-            )
-            heartbeat_thread.daemon = True
-            heartbeat_thread.start()
+
+        heartbeat_thread(heartbeat, process)
 
         if encoding is False:
             output_stdout = output_stderr = b""
@@ -919,16 +929,8 @@ def command_runner(
         )
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
-        if heartbeat:
-            heartbeat_thread = threading.Thread(
-                target=_heartbeat_thread,
-                args=(
-                    process,
-                    heartbeat,
-                ),
-            )
-            heartbeat_thread.daemon = True
-            heartbeat_thread.start()
+
+        heartbeat_thread(heartbeat, process)
 
         if encoding is False:
             output_stdout = output_stderr = b""
