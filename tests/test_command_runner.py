@@ -27,6 +27,8 @@ import platform
 import re
 import threading
 import logging
+import collections
+
 try:
     from command_runner import *
 except ImportError:  # would be ModuleNotFoundError in Python 3+
@@ -48,11 +50,36 @@ else:
         return date.timestamp()
 
 
+# Log capture class, blatantly copied from https://stackoverflow.com/a/37967421/2635443
+class TailLogHandler(logging.Handler):
+
+    def __init__(self, log_queue):
+        logging.Handler.__init__(self)
+        self.log_queue = log_queue
+
+    def emit(self, record):
+        self.log_queue.append(self.format(record))
+
+
+class TailLogger(object):
+
+    def __init__(self, maxlen):
+        self._log_queue = collections.deque(maxlen=maxlen)
+        self._log_handler = TailLogHandler(self._log_queue)
+
+    def contents(self):
+        return '\n'.join(self._log_queue)
+
+    @property
+    def log_handler(self):
+        return self._log_handler
+
+
 # We need a logging unit here
 logger = logging.getLogger()
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.ERROR)
+handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -64,6 +91,7 @@ TEST_FILENAME = 'README.md'
 if os.name == 'nt':
     ENCODING = 'cp437'
     PING_CMD = 'ping 127.0.0.1 -n 4'
+    PING_CMD_10S = 'ping 127.0.0.1 -n 10'
     PING_CMD_REDIR = PING_CMD + ' 1>&2'
     # Make sure we run the failure command first so end result is okay
     PING_CMD_AND_FAILURE = 'ping 0.0.0.0 -n 2 1>&2 & ping 127.0.0.1 -n 2'
@@ -73,6 +101,7 @@ if os.name == 'nt':
 else:
     ENCODING = 'utf-8'
     PING_CMD = ['ping', '-c', '4', '127.0.0.1']
+    PING_CMD_10S = ['ping', '-c', '10', '127.0.0.1']
     PING_CMD_REDIR = 'ping -c 4 127.0.0.1 1>&2'
     PING_CMD_AND_FAILURE = 'ping -c 2 0.0.0.0 1>&2; ping -c 2 127.0.0.1'
     PRINT_FILE_CMD = 'cat {}'.format(TEST_FILENAME)
@@ -779,13 +808,26 @@ def test_no_close_queues():
 
 
 def test_heartbeat():
-    exit_code, output = command_runner(PING_CMD, heartbeat=2, shell=False)
+    tail = TailLogger(10)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    log_handler = tail.log_handler
+    log_handler.setFormatter(formatter)
+    logger.addHandler(log_handler)  # Add the handler to the logger
+
+
+    exit_code, output = command_runner(PING_CMD_10S + " -n 10", heartbeat=2, shell=False)
+    log_contents = tail.contents()
+    print("LOGS\n", log_contents)
     assert exit_code == 0, 'Exit code should be 0 for ping command with heartbeat'
-    assert 'Still running command after 2 seconds' in output, 'Output should have heartbeat'
+    # We should have a modulo 2 heeatbeat
+    assert "Still running command after 4 seconds" in log_contents, 'Output should have heartbeat'
 
 
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
+
     test_standard_ping_with_encoding()
     test_standard_ping_with_default_encoding()
     test_standard_ping_with_encoding_disabled()
