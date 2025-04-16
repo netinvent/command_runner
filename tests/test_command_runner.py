@@ -18,7 +18,7 @@ __intname__ = 'command_runner_tests'
 __author__ = 'Orsiris de Jong'
 __copyright__ = 'Copyright (C) 2015-2025 Orsiris de Jong'
 __licence__ = 'BSD 3 Clause'
-__build__ = '2025040901'
+__build__ = '2025041601'
 
 
 import sys
@@ -778,6 +778,12 @@ def test_no_close_queues():
     assert exit_code == 0, 'We did not succeed in running the thread'
 
 
+def test_heartbeat():
+    exit_code, output = command_runner(PING_CMD, heartbeat=2, shell=False)
+    assert exit_code == 0, 'Exit code should be 0 for ping command with heartbeat'
+    assert 'Still running command after 2 seconds' in output, 'Output should have heartbeat'
+
+
 if __name__ == "__main__":
     print("Example code for %s, %s" % (__intname__, __build__))
     test_standard_ping_with_encoding()
@@ -804,5 +810,7 @@ if __name__ == "__main__":
     test_null_redir()
     test_split_streams()
     test_on_exit()
-    test_priority()
+    test_low_priority()
+    test_high_priority()
     test_no_close_queues()
+    test_heartbeat()
