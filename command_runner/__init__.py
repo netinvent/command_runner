@@ -1141,11 +1141,7 @@ def command_runner(
             elif stdout_destination == "file" and output_stderr:
                 _stdout.write(output_stderr.encode(encoding, errors=errors))
 
-        logger.debug(
-            'Command "{}" returned with exit code "{}". Command output was:\n{}'.format(
-                command, exit_code, to_encoding(output_stdout, error_encoding, errors)
-            )
-        )
+        logger.debug('Command "{}" returned with exit code "{}"'.format(command, exit_code))
     except subprocess.CalledProcessError as exc:
         exit_code = exc.returncode
         try:
@@ -1162,13 +1158,12 @@ def command_runner(
 
         if not silent:
             logger_fn(
-                'Command "{}" failed with{} exit code "{}". Command output was:'.format(
+                'Command "{}" failed with{} exit code "{}"'.format(
                     command,
                     valid_exit_codes_msg,
                     exc.returncode,
                 )
             )
-            logger_fn(output_stdout)
     except FileNotFoundError as exc:
         message = 'Command "{}" failed, file not found: {}'.format(
             command, to_encoding(exc.__str__(), error_encoding, errors)
@@ -1234,14 +1229,6 @@ def command_runner(
         if stderr_destination == "file":
             _stderr.close()
 
-    stdout_output = to_encoding(output_stdout, error_encoding, errors)
-    if stdout_output:
-        logger.debug("STDOUT: " + stdout_output)
-    if stderr_destination not in ["stdout", None]:
-        stderr_output = to_encoding(output_stderr, error_encoding, errors)
-        if stderr_output:
-            logger.debug("STDERR: " + stderr_output)
-
     # Make sure we send a simple queue end before leaving to make sure any queue read process will stop regardless
     # of command_runner state (useful when launching with queue and method poller which isn't supposed to write queues)
     if not no_close_queues:
@@ -1263,6 +1250,17 @@ def command_runner(
         output_stderr is not None and len(output_stderr) == 0
     ):
         output_stderr = None
+
+    stdout_output = to_encoding(output_stdout, error_encoding, errors)
+    if stdout_output:
+        logger.debug("STDOUT: " + stdout_output)
+    if stderr_destination not in ["stdout", None]:
+        stderr_output = to_encoding(output_stderr, error_encoding, errors)
+        if stderr_output and not silent:
+            if exit_code == 0 or (valid_exit_codes and valid_exit_codes is True or exit_code in valid_exit_codes):
+                logger.debug("STDERR: " + stderr_output)
+            else:
+                logger.error("STDERR: " + stderr_output)
 
     if on_exit:
         logger.debug("Running on_exit callable.")
