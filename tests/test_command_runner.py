@@ -77,9 +77,9 @@ class TailLogger(object):
 
 # We need a logging unit here
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.ERROR)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -986,8 +986,9 @@ def test_heartbeat():
     log_handler = tail.log_handler
     log_handler.setFormatter(formatter)
     logger.addHandler(log_handler)  # Add the handler to the logger
+    logger.setLevel(logging.ERROR)
 
-    exit_code, output = command_runner(
+    exit_code, _ = command_runner(
         PING_CMD_10S + " -n 10", heartbeat=2, shell=False
     )
     log_contents = tail.contents()
