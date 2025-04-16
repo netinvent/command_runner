@@ -989,7 +989,7 @@ def test_heartbeat():
     logger.setLevel(logging.ERROR)
 
     exit_code, _ = command_runner(
-        PING_CMD_10S + " -n 10", heartbeat=2, shell=False
+        PING_CMD_10S, heartbeat=2, shell=False
     )
     log_contents = tail.contents()
     print("LOGS\n", log_contents)
