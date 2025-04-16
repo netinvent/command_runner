@@ -1141,7 +1141,9 @@ def command_runner(
             elif stdout_destination == "file" and output_stderr:
                 _stdout.write(output_stderr.encode(encoding, errors=errors))
 
-        logger.debug('Command "{}" returned with exit code "{}"'.format(command, exit_code))
+        logger.debug(
+            'Command "{}" returned with exit code "{}"'.format(command, exit_code)
+        )
     except subprocess.CalledProcessError as exc:
         exit_code = exc.returncode
         try:
@@ -1257,7 +1259,11 @@ def command_runner(
     if stderr_destination not in ["stdout", None]:
         stderr_output = to_encoding(output_stderr, error_encoding, errors)
         if stderr_output and not silent:
-            if exit_code == 0 or (valid_exit_codes and valid_exit_codes is True or exit_code in valid_exit_codes):
+            if exit_code == 0 or (
+                valid_exit_codes
+                and valid_exit_codes is True
+                or exit_code in valid_exit_codes
+            ):
                 logger.debug("STDERR: " + stderr_output)
             else:
                 logger.error("STDERR: " + stderr_output)
