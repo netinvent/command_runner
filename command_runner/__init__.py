@@ -790,7 +790,7 @@ def command_runner(
 
         begin_time = datetime.now()
 
-        heartbeat_thread(heartbeat, process)
+        heartbeat_thread(process, heartbeat)
 
         if encoding is False:
             output_stdout = output_stderr = b""
@@ -930,7 +930,7 @@ def command_runner(
         thread.daemon = True  # was setDaemon(True) which has been deprecated
         thread.start()
 
-        heartbeat_thread(heartbeat, process)
+        heartbeat_thread(process, heartbeat)
 
         if encoding is False:
             output_stdout = output_stderr = b""
