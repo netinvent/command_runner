@@ -977,6 +977,9 @@ def test_no_close_queues():
 
 
 def test_heartbeat():
+    # Don't run this on github actions since they already capture logging output
+    if running_on_github_actions():
+        return
     tail = TailLogger(10)
 
     formatter = logging.Formatter(
