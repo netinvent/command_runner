@@ -954,9 +954,6 @@ def test_high_priority():
 
 
 def test_heartbeat():
-    # Don't run this on github actions since they already capture logging output
-    #if running_on_github_actions():
-    #    return
     # Log capture class, blatantly copied from https://stackoverflow.com/a/37967421/2635443
     class TailLogHandler(logging.Handler):
 
