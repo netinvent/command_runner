@@ -1073,11 +1073,15 @@ def command_runner(
                     set_priority(process.pid, priority)
                 except psutil.AccessDenied as exc:
                     logger.warning(
-                        "Cannot set process priority {}. Access denied.".format(exc)
+                        "Cannot set process priority {}: {}. Access denied.".format(
+                            priority, exc
+                        )
                     )
                     logger.debug("Trace:", exc_info=True)
                 except Exception as exc:
-                    logger.warning("Cannot set process priority: {}".format(exc))
+                    logger.warning(
+                        "Cannot set process priority {}: {}".format(priority, exc)
+                    )
                     logger.debug("Trace:", exc_info=True)
             except NameError:
                 logger.warning(
@@ -1091,13 +1095,15 @@ def command_runner(
                     set_io_priority(process.pid, io_priority)
                 except psutil.AccessDenied as exc:
                     logger.warning(
-                        "Cannot set io priority for process {}: access denied.".format(
-                            exc
+                        "Cannot set io priority {}: {} Access denied.".format(
+                            io_priority, exc
                         )
                     )
                     logger.debug("Trace:", exc_info=True)
                 except Exception as exc:
-                    logger.warning("Cannot set io priority: {}".format(exc))
+                    logger.warning(
+                        "Cannot set io priority {}: {}".format(io_priority, exc)
+                    )
                     logger.debug("Trace:", exc_info=True)
                     raise
             except NameError:
