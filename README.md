@@ -23,7 +23,7 @@ while solving various problems a developer may face among:
    - Optional Linux sudo elevation compatible with CPython, PyInstaller & Nuitka
    - Optional heartbeat for command execution
 
-It is compatible with Python 2.7+, tested up to Python 3.12 (backports some newer functionality to Python 3.5) and is tested on both Linux and Windows.
+It is compatible with Python 2.7+, tested up to Python 3.13 (backports some newer functionality to Python 3.5) and is tested on Linux, Windows and MacOS.
 It is also compatible with PyPy Python implementation.
 ...and yes, keeping Python 2.7 compatibility has proven to be quite challenging.
 
