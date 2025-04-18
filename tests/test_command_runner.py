@@ -18,7 +18,7 @@ __intname__ = "command_runner_tests"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__build__ = "2025041601"
+__build__ = "2025041801"
 
 
 import sys
@@ -50,36 +50,11 @@ else:
         return date.timestamp()
 
 
-# Log capture class, blatantly copied from https://stackoverflow.com/a/37967421/2635443
-class TailLogHandler(logging.Handler):
-
-    def __init__(self, log_queue):
-        logging.Handler.__init__(self)
-        self.log_queue = log_queue
-
-    def emit(self, record):
-        self.log_queue.append(self.format(record))
-
-
-class TailLogger(object):
-
-    def __init__(self, maxlen):
-        self._log_queue = collections.deque(maxlen=maxlen)
-        self._log_handler = TailLogHandler(self._log_queue)
-
-    def contents(self):
-        return "\n".join(self._log_queue)
-
-    @property
-    def log_handler(self):
-        return self._log_handler
-
-
 # We need a logging unit here
 logger = logging.getLogger()
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.WARNING)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.ERROR)
+handler.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -852,72 +827,6 @@ def test_on_exit():
     assert ON_EXIT_CALLED is True, "On exit was never called"
 
 
-def test_low_priority():
-    def check_low_priority(process):
-        niceness = os.nice(process.pid)
-        io_niceness = psutil.Process(process.pid).ionice()
-        if os.name == "nt":
-            assert niceness == 16384, "Process niceness not properly set: {}".format(
-                niceness
-            )
-            assert io_niceness == 1, "Process io niceness not set properly: {}".format(
-                io_niceness
-            )
-        else:
-            assert niceness == 15, "Process niceness not properly set: {}".format(
-                niceness
-            )
-            assert io_niceness == 3, "Process io niceness not set properly: {}".format(
-                io_niceness
-            )
-        print("Nice !")
-
-    def command_runner_thread():
-        return command_runner_threaded(
-            PING_CMD,
-            priority="low",
-            io_priority="low",
-            process_callback=check_low_priority,
-        )
-
-    thread = threading.Thread(target=command_runner_thread, args=())
-    thread.daemon = True  # thread dies with the program
-    thread.start()
-
-
-def test_high_priority():
-    def check_high_priority(process):
-        niceness = os.nice(process.pid)
-        io_niceness = psutil.Process(process.pid).ionice()
-        if os.name == "nt":
-            assert niceness == 128, "Process niceness not properly set: {}".format(
-                niceness
-            )
-            assert io_niceness == 3, "Process io niceness not set properly: {}".format(
-                io_niceness
-            )
-        else:
-            assert niceness == -15, "Process niceness not properly set: {}".format(
-                niceness
-            )
-            assert io_niceness == 1, "Process io niceness not set properly: {}".format(
-                io_niceness
-            )
-        print("Nice !")
-
-    def command_runner_thread():
-        return command_runner_threaded(
-            PING_CMD,
-            priority="low",
-            io_priority="low",
-            process_callback=check_high_priority,
-        )
-
-    thread = threading.Thread(target=command_runner_thread, args=())
-    thread.daemon = True  # thread dies with the program
-    thread.start()
-
-
 def test_no_close_queues():
     """
     Test no_close_queues
@@ -976,10 +885,102 @@ def test_no_close_queues():
     assert exit_code == 0, "We did not succeed in running the thread"
 
 
+def test_low_priority():
+    def check_low_priority(process):
+        niceness = psutil.Process(process.pid).nice()
+        io_niceness = psutil.Process(process.pid).ionice()
+        if os.name == "nt":
+            assert niceness == 16384, "Process low prio niceness not properly set: {}".format(
+                niceness
+            )
+            assert io_niceness == 1, "Process low prio io niceness not set properly: {}".format(
+                io_niceness
+            )
+        else:
+            assert niceness == 15, "Process low prio niceness not properly set: {}".format(
+                niceness
+            )
+            assert io_niceness == 3, "Process low prio io niceness not set properly: {}".format(
+                io_niceness
+            )
+        print("Nice !")
+
+    def command_runner_thread():
+        return command_runner_threaded(
+            PING_CMD,
+            priority="low",
+            io_priority="low",
+            process_callback=check_low_priority,
+        )
+
+    thread = threading.Thread(target=command_runner_thread, args=())
+    thread.daemon = True  # thread dies with the program
+    thread.start()
+
+
+def test_high_priority():
+    def check_high_priority(process):
+        niceness = psutil.Process(process.pid).nice()
+        io_niceness = psutil.Process(process.pid).ionice()
+        if os.name == "nt":
+            assert niceness == 128, "Process high prio niceness not properly set: {}".format(
+                niceness
+            )
+            # So se actually don't test this here, since high prio cannot be set on Windows unless
+            # we have NtSetInformationProcess privilege
+            # assert io_niceness == 3, "Process high prio io niceness not set properly: {}".format(
+            #    io_niceness
+            # )
+        else:
+            assert niceness == -15, "Process high prio niceness not properly set: {}".format(
+                niceness
+            )
+            assert io_niceness == 1, "Process high prio io niceness not set properly: {}".format(
+                io_niceness
+            )
+        print("Nice !")
+
+    def command_runner_thread():
+        return command_runner_threaded(
+            PING_CMD,
+            priority="high",
+            # io_priority="high",
+            process_callback=check_high_priority,
+        )
+
+    thread = threading.Thread(target=command_runner_thread, args=())
+    thread.daemon = True  # thread dies with the program
+    thread.start()
+
+
 def test_heartbeat():
     # Don't run this on github actions since they already capture logging output
-    if running_on_github_actions():
-        return
+    #if running_on_github_actions():
+    #    return
+    # Log capture class, blatantly copied from https://stackoverflow.com/a/37967421/2635443
+    class TailLogHandler(logging.Handler):
+
+        def __init__(self, log_queue):
+            logging.Handler.__init__(self)
+            self.log_queue = log_queue
+
+        def emit(self, record):
+            self.log_queue.append(self.format(record))
+
+
+    class TailLogger(object):
+
+        def __init__(self, maxlen):
+            self._log_queue = collections.deque(maxlen=maxlen)
+            self._log_handler = TailLogHandler(self._log_queue)
+
+        def contents(self):
+            return "\n".join(self._log_queue)
+
+        @property
+        def log_handler(self):
+            return self._log_handler
+
     tail = TailLogger(10)
 
     formatter = logging.Formatter(
@@ -989,13 +990,15 @@ def test_heartbeat():
     log_handler = tail.log_handler
     log_handler.setFormatter(formatter)
     logger.addHandler(log_handler)  # Add the handler to the logger
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.INFO)
 
-    exit_code, _ = command_runner(
+    exit_code, output = command_runner(
         PING_CMD_10S, heartbeat=2, shell=False
     )
     log_contents = tail.contents()
-    print("LOGS\n", log_contents)
+    print("LOGS:\n", log_contents)
+    print("END LOGS")
+    print("COMMAND_OUTPUT:\n", output)
     assert exit_code == 0, "Exit code should be 0 for ping command with heartbeat"
     # We should have a modulo 2 heeatbeat
     assert (
@@ -1030,7 +1033,8 @@ if __name__ == "__main__":
     test_null_redir()
     test_split_streams()
     test_on_exit()
+    test_no_close_queues()
     test_low_priority()
     test_high_priority()
-    test_no_close_queues()
     test_heartbeat()
+
