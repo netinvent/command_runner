@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.7.3"
-__build__ = "2025041801"
+__version__ = "1.7.4"
+__build__ = "2025052301"
 __compat__ = "python2.7+"
 
 import io
@@ -312,12 +312,13 @@ logger = getLogger(__intname__)
 PIPE = subprocess.PIPE
 
 
-def _validate_process_priority(priority):
+def _validate_process_priority(
+        priority # type: Union[int, str]
+    ):
+    # type: (...) -> int
     """
     Check if priority int is valid
     """
-
-    # type: Union[int, bool] -> int
     def _raise_prio_error(priority, reason):
         raise ValueError(
             "Priority not valid ({}): {}. Please use one of {}".format(
