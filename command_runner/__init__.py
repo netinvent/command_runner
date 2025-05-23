@@ -313,12 +313,13 @@ PIPE = subprocess.PIPE
 
 
 def _validate_process_priority(
-        priority # type: Union[int, str]
-    ):
+    priority,  # type: Union[int, str]
+):
     # type: (...) -> int
     """
     Check if priority int is valid
     """
+
     def _raise_prio_error(priority, reason):
         raise ValueError(
             "Priority not valid ({}): {}. Please use one of {}".format(
