@@ -839,9 +839,11 @@ def command_runner(
                             if stdout_destination == "queue":
                                 stdout.put(line)
                             if live_output:
-                                # We need to use sys.stdout.buffer instead of sys.stdout to allow binary output to console
-                                # without any translation that is done by sys.stdout.write()
-                                sys.stdout.buffer.write(line)
+                                if encoding == False:
+                                    # We need to allow binary output too, hence using sys.stdout.buffer instead of sys.stdout
+                                    sys.stdout.buffer.write(line)
+                                else:
+                                    sys.stdout.write(line)
                             output_stdout += line
 
                 if stderr_read_queue:
