@@ -77,7 +77,7 @@ if os.name == "nt":
     # This is a dummy test on windows
     PRINT_BINARY_FILE_CMD = "type C:\\Windows\\System32\\cmd.exe"
 else:
-    ENCODING = "utf-8"
+    ENCODING = "utf-8"-
     PING_CMD = ["ping", "-c", "4", "127.0.0.1"]
     PING_CMD_10S = ["ping", "-c", "10", "127.0.0.1"]
     PING_CMD_REDIR = "ping -c 4 127.0.0.1 1>&2"
@@ -170,7 +170,7 @@ def test_direct_binary_output_to_stdout():
     Without encoding disabled, we should have binary output
     """
     for method in methods:
-        exit_code, output = command_runner(PRINT_BINARY_FILE_CMD, encoding=False, method=method)
+        exit_code, output = command_runner(PRINT_BINARY_FILE_CMD, encoding=False, shell=True, method=method)
         print(output)
         assert (
             exit_code == 0
