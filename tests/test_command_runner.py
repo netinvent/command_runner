@@ -77,7 +77,7 @@ if os.name == "nt":
     # This is a dummy test on windows
     PRINT_BINARY_FILE_CMD = "type C:\\Windows\\System32\\cmd.exe"
 else:
-    ENCODING = "utf-8"-
+    ENCODING = "utf-8"
     PING_CMD = ["ping", "-c", "4", "127.0.0.1"]
     PING_CMD_10S = ["ping", "-c", "10", "127.0.0.1"]
     PING_CMD_REDIR = "ping -c 4 127.0.0.1 1>&2"
