@@ -18,7 +18,7 @@ __intname__ = "command_runner_tests"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__build__ = "2025041801"
+__build__ = "2025090901"
 
 
 import sys
@@ -73,6 +73,9 @@ if os.name == "nt":
     PING_FAILURE = "ping 0.0.0.0 -n 2 1>&2"
 
     PRINT_FILE_CMD = "type {}".format(TEST_FILENAME)
+    # On widows, we cannot print binary files to console, type would transliterate it into text
+    # This is a dummy test on windows
+    PRINT_BINARY_FILE_CMD = "type C:\\Windows\\System32\\cmd.exe"
 else:
     ENCODING = "utf-8"
     PING_CMD = ["ping", "-c", "4", "127.0.0.1"]
@@ -80,6 +83,7 @@ else:
     PING_CMD_REDIR = "ping -c 4 127.0.0.1 1>&2"
     PING_CMD_AND_FAILURE = "ping -c 2 0.0.0.0 1>&2; ping -c 2 127.0.0.1"
     PRINT_FILE_CMD = "cat {}".format(TEST_FILENAME)
+    PRINT_BINARY_FILE_CMD = "cat /bin/sh"
     PING_FAILURE = "ping -c 2 0.0.0.0 1>&2"
 
 
@@ -160,6 +164,18 @@ def test_standard_ping_with_encoding_disabled():
         ), "Exit code should be 0 for ping command with method {}".format(method)
         assert isinstance(output, bytes), "Output should be binary."
 
+
+def test_direct_binary_output_to_stdout():
+    """
+    Without encoding disabled, we should have binary output
+    """
+    for method in methods:
+        exit_code, output = command_runner(PRINT_BINARY_FILE_CMD, encoding=False, method=method)
+        print(output)
+        assert (
+            exit_code == 0
+        ), "Exit code should be 0 for ping command with method {}".format(method)
+        assert isinstance(output, bytes), "Output should be binary."
 
 def test_timeout():
     """
