@@ -21,8 +21,8 @@ __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
 __copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.7.4"
-__build__ = "2025052301"
+__version__ = "1.7.5"
+__build__ = "2025090901"
 __compat__ = "python2.7+"
 
 import io
@@ -839,7 +839,9 @@ def command_runner(
                             if stdout_destination == "queue":
                                 stdout.put(line)
                             if live_output:
-                                sys.stdout.write(line)
+                                # We need to use sys.stdout.buffer instead of sys.stdout to allow binary output to console
+                                # without any translation that is done by sys.stdout.write()
+                                sys.stdout.buffer.write(line)
                             output_stdout += line
 
                 if stderr_read_queue:
