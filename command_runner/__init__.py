@@ -25,7 +25,6 @@ __version__ = "1.7.5"
 __build__ = "2025090901"
 __compat__ = "python2.7+"
 
-import io
 import os
 import shlex
 import subprocess
