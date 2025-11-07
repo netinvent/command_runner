@@ -169,12 +169,12 @@ logging.getLogger('command_runner').setLevel(logging.CRITICAL)
  - A thread is spawned in order to check stop conditions and kill process if needed
  - A main loop waits for the process to finish, then uses proc.communicate() to get it's output
  - Pros:
-     - less CPU usage
-     - less threads
+     - Less CPU usage
+     - Less threads
  - Cons:
-     - cannot read partial output on KeyboardInterrupt or stop_on (still works for partial timeout output)
-     - cannot use queues or callback functions redirectors
-     - is 0.1 seconds slower than poller method
+     - It cannot read partial output on KeyboardInterrupt or stop_on (still works for partial timeout output)
+     - It cannot use queues or callback functions redirectors
+     - It is 0.1 seconds slower than poller method
      
 
 `method='poller'`:
@@ -183,9 +183,9 @@ logging.getLogger('command_runner').setLevel(logging.CRITICAL)
  - Pros: 
       - Reads on the fly, allowing interactive commands (is also used with `live_output=True`)
       - Allows stdout/stderr output to be written live to callback functions, queues or files (useful when threaded)
-      - is 0.1 seconds faster than monitor method, is preferred method for fast batch runnings
+      - It is 0.1 seconds faster than monitor method and is the preferred method for fast batch runnings
  - Cons:
-      - lightly higher CPU usage
+      - Slightly higher CPU usage
 
 Example:
 ```python
