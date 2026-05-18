@@ -13,16 +13,16 @@ Versioning semantics:
     Patch version: Backwards compatible bug fixes
 
 """
+
 # python 2.7 compat fixes so all strings are considered unicode
 from __future__ import unicode_literals
 
-
 __intname__ = "command_runner"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong for NetInvent"
+__copyright__ = "Copyright (C) 2015-2026 Orsiris de Jong for NetInvent"
 __licence__ = "BSD 3 Clause"
-__version__ = "1.7.5"
-__build__ = "2025090901"
+__version__ = "1.7.6"
+__build__ = "2026051801"
 __compat__ = "python2.7+"
 
 import os
@@ -32,7 +32,6 @@ import sys
 from datetime import datetime
 from logging import getLogger
 from time import sleep
-
 
 # Avoid checking os type numerous times
 os_name = os.name
@@ -546,14 +545,15 @@ def command_runner(
     live_output=False,  # type: bool
     method="monitor",  # type: str
     check_interval=0.05,  # type: float
-    stop_on=None,  # type: Callable
-    on_exit=None,  # type: Callable
-    process_callback=None,  # type: Callable
+    stop_on=None,  # type: Optional[Callable]
+    on_exit=None,  # type: Optional[Callable]
+    process_callback=None,  # type: Optional[Callable]
     split_streams=False,  # type: bool
     silent=False,  # type: bool
-    priority=None,  # type: Union[int, str]
-    io_priority=None,  # type: str
+    priority=None,  # type: Optional[Union[int, str]]
+    io_priority=None,  # type: Optional[str]
     heartbeat=0,  # type: int
+    log_replace=None,  # type: Optional[dict]
     **kwargs  # type: Any
 ):
     # type: (...) -> Union[Tuple[int, Optional[Union[bytes, str]]], Tuple[int, Optional[Union[bytes, str]], Optional[Union[bytes, str]]]]
@@ -1152,6 +1152,12 @@ def command_runner(
             elif stdout_destination == "file" and output_stderr:
                 _stdout.write(output_stderr.encode(encoding, errors=errors))
 
+        if log_replace:
+            for k, v in log_replace.items():
+                if isinstance(command, list):
+                    command = [str(x).replace(k, v) for x in command]
+                elif isinstance(command, str):
+                    command = command.replace(k, v)
         logger.debug(
             'Command "{}" returned with exit code "{}"'.format(command, exit_code)
         )
