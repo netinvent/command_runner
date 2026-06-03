@@ -16,9 +16,9 @@ Versioning semantics:
 
 __intname__ = "command_runner_tests"
 __author__ = "Orsiris de Jong"
-__copyright__ = "Copyright (C) 2015-2025 Orsiris de Jong"
+__copyright__ = "Copyright (C) 2015-2026 Orsiris de Jong"
 __licence__ = "BSD 3 Clause"
-__build__ = "2025090901"
+__build__ = "2026060301"
 
 
 import sys
@@ -28,13 +28,19 @@ import re
 import threading
 import logging
 import collections
+from datetime import datetime
+import subprocess
+from time import sleep
+import queue
+import psutil
+
 
 try:
-    from command_runner import *
+    from command_runner import command_runner, command_runner_threaded, deferred_command
 except ImportError:  # would be ModuleNotFoundError in Python 3+
     # In case we run tests without actually having installed command_runner
     sys.path.insert(0, os.path.abspath(os.path.join(__file__, os.pardir, os.pardir)))
-    from command_runner import *
+    from command_runner import command_runner, command_runner_threaded, deferred_command
 
 # Python 2.7 compat where datetime.now() does not have .timestamp() method
 if sys.version_info[0] < 3 or sys.version_info[1] < 4:
@@ -245,7 +251,7 @@ def test_live_output():
     """
     for method in methods:
         exit_code, _ = command_runner(
-            PING_CMD, stdout=PIPE, encoding=ENCODING, method=method
+            PING_CMD, stdout=subprocess.PIPE, encoding=ENCODING, method=method
         )
         assert (
             exit_code == 0
@@ -960,7 +966,6 @@ def test_high_priority():
         return command_runner_threaded(
             PING_CMD,
             priority="high",
-            # io_priority="high",
             process_callback=check_high_priority,
         )
 
