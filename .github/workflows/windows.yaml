@@ -16,7 +16,8 @@ jobs:
         os: [windows-latest]
         # As of 2023/08/30, we have removed python 2.7 since github actions won't provide it anymore
         # As of 2024/09/15, we have removed python 3.5 since we cannot gather the dependencies anymore
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", "3.11", "3.12", "3.13", 'pypy-3.6', 'pypy-3.7', 'pypy-3.8', 'pypy-3.10']
+        # As of 2026/06/03, we have remove pypy-3.6-3.8 since they don't build psutil anymore
+        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "3.14", 'pypy-3.10', 'pypy-3.11']
 
     steps:
     - uses: actions/checkout@v3
