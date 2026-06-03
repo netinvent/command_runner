@@ -179,19 +179,16 @@ def _check_environment():
         # so we need to fill runner with sys.argv[0] absolute path
         runner = os.path.abspath(sys.argv[0])
         arguments = sys.argv[1:]
-        # current_dir = os.path.dirname(runner)
         logger.debug('Running elevator as Nuitka with runner "{}"'.format(runner))
     # If a freezer is used (PyInstaller, cx_freeze, py2exe)
     elif getattr(sys, "frozen", False):
         runner = os.path.abspath(sys.executable)
         arguments = sys.argv[1:]
-        # current_dir = os.path.dirname(runner)
         logger.debug('Running elevator as Frozen with runner "{}"'.format(runner))
     # If standard interpreter CPython is used
     else:
         runner = os.path.abspath(sys.executable)
         arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
-        # current_dir = os.path.abspath(sys.argv[0])
         logger.debug('Running elevator as CPython with runner "{}"'.format(runner))
     logger.debug('Arguments are "{}"'.format(arguments))
     return runner, arguments
