@@ -432,6 +432,25 @@ from command_runner import command_runner
 exit_code, output = command_runner('/some/long/command', timeout=None, heartbeat=3600)
 ```
 
+### Log replacing
+All commands can be logged upon error, or with debug.
+In some cases, we don't want parts of the command to be divulgated.
+That's where `log_replace=` comes in.
+
+Example:
+
+```python
+from command_runner import command_runner
+
+log_replace = {
+    'mypassword': '****",
+    'MyToken': 'you_cant_see_me',
+}
+
+exit_code, output = command_runner('export PASSWORD=mypassword some_exe --token MyToken', shell=True, log_replace=log_replace)
+```
+If we have enabled debug logging or we get an error, the command logged will look like `export PASSWORD=**** some_exe --token you_cant_see_me`
+
 ### Other arguments
 
 `command_runner` takes **any** argument that `subprocess.Popen()` would take.
@@ -462,6 +481,7 @@ It also uses the following standard arguments:
  - universal_newlines (bool): Like Popen, defaults to False
  - creation_flags (int): Like Popen, defaults to 0
  - bufsize (int): Like Popen, defaults to 16384. Line buffering (bufsize=1) is deprecated since Python 3.7
+ - log_replace (dict): A dict of strings as keys and their replacement, in order to avoid sensitive command divulgation in logs
 
 **Note that ALL other subprocess.Popen arguments are supported, since they are directly passed to subprocess.**
 
